@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#00f0ff" />
+  <meta name="description" content="AERORUSH: SKYBOUND - Premium 3D Electric Hypercar Arcade Racing, Aerial Stunts, and Offline PWA" />
+  <title>AERORUSH: SKYBOUND</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon-192.png" />
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <!-- WebGL Render Canvas Container -->
+  <div id="game-container">
+    <canvas id="webgl-canvas"></canvas>
+  </div>
+
+  <!-- UI Overlay Layer -->
+  <div id="ui-layer">
+    <!-- Top Global Bar (Offline Badge & Player Credits) -->
+    <header class="global-bar" id="global-bar">
+      <div class="network-badge" id="network-badge">
+        <span class="status-dot online"></span>
+        <span id="network-status-text">ONLINE</span>
+      </div>
+      <div class="currency-pill" id="currency-pill">
+        <span class="currency-icon">⚡</span>
+        <span id="global-credits-val">1,200</span>
+        <span class="currency-unit">AC</span>
+      </div>
+    </header>
+
+    <!-- Loading Screen -->
+    <div id="screen-loading" class="screen active">
+      <div class="brand-panel">
+        <div class="logo-sub">EXPERIMENTAL AEROSPACE DRIVE</div>
+        <h1 class="logo-title">AERORUSH<span class="logo-accent">SKYBOUND</span></h1>
+        <div class="vehicle-badge">VANTA XR // HYPERCAR SYSTEM v2.0</div>
+      </div>
+      <div class="loader-box">
+        <div class="loader-bar-bg">
+          <div id="loader-bar" class="loader-bar-fill"></div>
+        </div>
+        <div id="loader-text" class="loader-label">INITIALIZING HYPERDRIVE & AERODYNAMICS...</div>
+      </div>
+    </div>
+
+    <!-- Main Menu (Home Screen) -->
+    <div id="screen-menu" class="screen">
+      <div class="menu-content">
+        <div class="brand-panel animated-in">
+          <div class="logo-badge">FUTURE HYPERCAR ARCADE</div>
+          <h1 class="logo-title">AERORUSH<span class="logo-accent">SKYBOUND</span></h1>
+          <div class="brand-desc">DRIVE AT INCREDIBLE SPEED. LAUNCH INTO THE SKY. BEAT YOUR RECORD.</div>
+        </div>
+
+        <div class="menu-actions">
+          <button id="btn-main-play" class="btn-primary btn-hero">
+            <span class="btn-glimmer"></span>
+            <span class="btn-icon">⚡</span>
+            <span class="btn-text">LAUNCH RUN</span>
+          </button>
+          <div class="menu-btn-grid">
+            <button id="btn-nav-career" class="btn-secondary">
+              <span class="btn-icon">🏆</span>
+              <span class="btn-text">CAREER</span>
+            </button>
+            <button id="btn-nav-quick" class="btn-secondary">
+              <span class="btn-icon">🚀</span>
+              <span class="btn-text">QUICK RUN</span>
+            </button>
+            <button id="btn-nav-stunts" class="btn-secondary">
+              <span class="btn-icon">🌀</span>
+              <span class="btn-text">STUNT SCHOOL</span>
+            </button>
+            <button id="btn-nav-garage" class="btn-secondary">
+              <span class="btn-icon">🏎️</span>
+              <span class="btn-text">GARAGE</span>
+            </button>
+            <button id="btn-nav-leaderboard" class="btn-secondary">
+              <span class="btn-icon">📊</span>
+              <span class="btn-text">RECORDS</span>
+            </button>
+            <button id="btn-nav-achievements" class="btn-secondary">
+              <span class="btn-icon">🎖️</span>
+              <span class="btn-text">AWARDS</span>
+            </button>
+          </div>
+
+          <div class="menu-btn-footer">
+            <button id="btn-nav-how" class="btn-subtle">MANUAL</button>
+            <button id="btn-nav-settings" class="btn-subtle">SETTINGS</button>
+            <button id="btn-nav-credits" class="btn-subtle">CREDITS</button>
+            <button id="btn-nav-privacy" class="btn-subtle">PRIVACY & PWA</button>
+          </div>
+        </div>
+
+        <div class="menu-footer">
+          <div class="footer-tag">VANTA XR • 1,850 HP • DUAL AERO-THRUSTERS • OFFLINE PWA</div>
+          <div class="footer-credit">Made by Deepesh Kumar Pankaj</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode Select Modal -->
+    <div id="screen-play-select" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h2 class="section-title">SELECT RACE MODE</h2>
+          <button id="btn-play-select-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body mode-grid">
+          <div class="mode-card" id="card-mode-career">
+            <div class="mode-icon">🏆</div>
+            <div class="mode-title">CAREER CAMPAIGN</div>
+            <div class="mode-desc">Structured 6-stage championship with briefings from Mira & Eon Vale. Earn medals & AeroCredits.</div>
+            <button class="btn-primary btn-card-action">START CAREER</button>
+          </div>
+          <div class="mode-card" id="card-mode-quick">
+            <div class="mode-icon">⚡</div>
+            <div class="mode-title">QUICK RUN</div>
+            <div class="mode-desc">Pick your favorite environment, race against your personal best ghost, and set records.</div>
+            <button class="btn-secondary btn-card-action">CHOOSE TRACK</button>
+          </div>
+          <div class="mode-card" id="card-mode-multiplayer">
+            <div class="mode-icon">🌐</div>
+            <div class="mode-title">REAL-TIME MULTIPLAYER</div>
+            <div class="mode-desc">Create or join 2-player live rooms. Race side-by-side with 15Hz real-time telemetry sync.</div>
+            <button class="btn-secondary btn-card-action">MULTIPLAYER LOBBY</button>
+          </div>
+          <div class="mode-card" id="card-mode-2p">
+            <div class="mode-icon">👥</div>
+            <div class="mode-title">PASS & PLAY (2-PLAYER)</div>
+            <div class="mode-desc">Offline shared-device duel: Player 1 races first, Player 2 competes against their ghost!</div>
+            <button class="btn-secondary btn-card-action">START LOCAL DUEL</button>
+          </div>
+          <div class="mode-card" id="card-mode-daily">
+            <div class="mode-icon">📅</div>
+            <div class="mode-title">DAILY CHALLENGE</div>
+            <div class="mode-desc">Deterministic worldwide track of the day. Race the identical seed and top global rankings.</div>
+            <button class="btn-secondary btn-card-action">TODAY'S RUN</button>
+          </div>
+          <div class="mode-card" id="card-mode-friend">
+            <div class="mode-icon">📨</div>
+            <div class="mode-title">FRIEND CHALLENGE</div>
+            <div class="mode-desc">Enter a friend's share code or load custom race parameters to beat their exact telemetry.</div>
+            <button class="btn-secondary btn-card-action">ENTER CODE</button>
+          </div>
+          <div class="mode-card" id="card-mode-stunts">
+            <div class="mode-icon">🌀</div>
+            <div class="mode-title">STUNT SCHOOL</div>
+            <div class="mode-desc">Focused training modules for 360° Barrel Rolls, Aerial Flips, Stunt Gates, and Drifting.</div>
+            <button class="btn-secondary btn-card-action">ENTER SCHOOL</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Career Missions Screen -->
+    <div id="screen-career" class="screen">
+      <div class="modal-card glass-card modal-wide">
+        <div class="modal-header">
+          <div class="title-with-badge">
+            <h2 class="section-title">CAREER CAMPAIGN</h2>
+            <span class="sub-label">AEROSPACE HYPERCAR CHAMPIONSHIP</span>
+          </div>
+          <button id="btn-career-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="missions-list" id="career-missions-list">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Run Environment Selector Screen -->
+    <div id="screen-quick" class="screen">
+      <div class="modal-card glass-card modal-wide">
+        <div class="modal-header">
+          <h2 class="section-title">QUICK RUN SETUP</h2>
+          <button id="btn-quick-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="customizer-label">SELECT RACING ENVIRONMENT</div>
+          <div class="env-cards-grid" id="env-selector-grid">
+            <!-- Dynamically populated with 4 environments -->
+          </div>
+
+          <div class="quick-options-row">
+            <div class="quick-opt-group">
+              <span class="setting-title">TARGET DISTANCE</span>
+              <div class="btn-group" id="group-distance">
+                <button class="group-btn" data-dist="1500">1,500 M</button>
+                <button class="group-btn active" data-dist="3000">3,000 M</button>
+                <button class="group-btn" data-dist="10000">ENDLESS</button>
+              </div>
+            </div>
+
+            <div class="quick-opt-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="check-ghost" checked class="styled-checkbox" />
+                <span>RACE AGAINST PERSONAL BEST GHOST</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-quick-launch" class="btn-primary">LAUNCH QUICK RUN</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stunt School Screen -->
+    <div id="screen-stunt-school" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h2 class="section-title">STUNT SCHOOL</h2>
+          <button id="btn-stunts-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body mode-grid">
+          <div class="mode-card stunt-module-card" data-module="roll">
+            <div class="mode-icon">🔄</div>
+            <div class="mode-title">BARREL ROLL ACADEMY</div>
+            <div class="mode-desc">Master the 360° aerial roll using [Q] / [E] or touch Roll. Complete 3 rolls.</div>
+            <button class="btn-secondary btn-card-action">START MODULE</button>
+          </div>
+          <div class="mode-card stunt-module-card" data-module="flip">
+            <div class="mode-icon">🌀</div>
+            <div class="mode-title">FLIP MASTERCLASS</div>
+            <div class="mode-desc">Use [W] and [S] pitch control in mid-air to complete forward and back flips.</div>
+            <button class="btn-secondary btn-card-action">START MODULE</button>
+          </div>
+          <div class="mode-card stunt-module-card" data-module="gates">
+            <div class="mode-icon">🎯</div>
+            <div class="mode-title">RING RUNNER</div>
+            <div class="mode-desc">Use [F] flight thrusters to navigate elevation changes and clear 4 stunt rings.</div>
+            <button class="btn-secondary btn-card-action">START MODULE</button>
+          </div>
+          <div class="mode-card stunt-module-card" data-module="drift">
+            <div class="mode-icon">💨</div>
+            <div class="mode-title">DRIFT KING</div>
+            <div class="mode-desc">Initiate slides with [SHIFT], maintain angle, and earn 3,000 drift points.</div>
+            <button class="btn-secondary btn-card-action">START MODULE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Garage Screen (Vehicle Customization & Upgrades) -->
+    <div id="screen-garage" class="screen">
+      <div class="garage-header">
+        <div class="garage-title-group">
+          <div class="sub-label">AEROSPACE HYPERCAR SPECIFICATION</div>
+          <h2 class="section-title">VANTA <span class="text-cyan">XR</span></h2>
+        </div>
+        <div class="garage-top-actions">
+          <div class="currency-pill">
+            <span class="currency-icon">⚡</span>
+            <span id="garage-credits-val">1,200</span>
+            <span class="currency-unit">AC</span>
+          </div>
+          <button id="btn-garage-back" class="btn-small">← MENU</button>
+        </div>
+      </div>
+
+      <!-- Garage Navigation Tabs -->
+      <div class="garage-tabs-bar">
+        <button class="garage-tab active" data-tab="upgrades">UPGRADES</button>
+        <button class="garage-tab" data-tab="paints">PAINTS</button>
+        <button class="garage-tab" data-tab="wheels">WHEELS</button>
+        <button class="garage-tab" data-tab="underglow">NEON GLOW</button>
+        <button class="garage-tab" data-tab="thrusters">THRUSTERS</button>
+      </div>
+
+      <!-- Garage Tab Contents -->
+      <div class="garage-panel glass-card" id="garage-tab-content">
+        <!-- Dynamically rendered per tab -->
+      </div>
+
+      <div class="garage-tip">DRAG TO ROTATE VEHICLE • SCROLL TO ZOOM</div>
+    </div>
+
+    <!-- Real-Time Multiplayer Screen -->
+    <div id="screen-multiplayer" class="screen">
+      <div class="modal-card glass-card modal-wide">
+        <div class="modal-header">
+          <div class="title-with-badge">
+            <h2 class="section-title">REAL-TIME MULTIPLAYER</h2>
+            <span class="sub-label" id="mp-connection-status">STATUS: CONNECTING...</span>
+          </div>
+          <button id="btn-mp-back" class="btn-close">✕</button>
+        </div>
+
+        <div class="modal-body" id="mp-view-tabs">
+          <!-- Connect / Mode Selection Tabs -->
+          <div class="garage-tabs-bar">
+            <button class="garage-tab active" id="tab-mp-host">HOST RACE</button>
+            <button class="garage-tab" id="tab-mp-join">JOIN ROOM</button>
+          </div>
+
+          <!-- Host View -->
+          <div class="mp-sub-panel" id="panel-mp-host">
+            <div class="customizer-label">SELECT RACE ENVIRONMENT</div>
+            <div class="env-cards-grid" id="mp-env-selector-grid"></div>
+            <div class="quick-options-row">
+              <div class="quick-opt-group">
+                <span class="setting-title">STAGE DISTANCE</span>
+                <div class="btn-group" id="group-mp-distance">
+                  <button class="group-btn" data-dist="1500">1,500 M</button>
+                  <button class="group-btn active" data-dist="3000">3,000 M</button>
+                  <button class="group-btn" data-dist="5000">5,000 M</button>
+                </div>
+              </div>
+            </div>
+            <button id="btn-mp-create-room" class="btn-primary btn-hero">CREATE RACE ROOM</button>
+          </div>
+
+          <!-- Join View -->
+          <div class="mp-sub-panel hidden" id="panel-mp-join">
+            <div class="customizer-label">ENTER 6-DIGIT ROOM CODE</div>
+            <div class="room-code-input-row">
+              <input type="text" id="input-mp-room-code" placeholder="e.g. AERO77" maxlength="6" class="styled-input-code" />
+              <button id="btn-mp-join-room" class="btn-primary">JOIN ROOM</button>
+            </div>
+            <div class="network-hint">Ask your friend for their 6-character room code.</div>
+          </div>
+        </div>
+
+        <!-- Room Lobby View (Active when inside room) -->
+        <div class="modal-body hidden" id="mp-view-lobby">
+          <div class="room-banner">
+            <span class="sub-label">RACE ROOM CODE:</span>
+            <span class="room-code-badge" id="lbl-mp-room-code">RUSH88</span>
+            <button id="btn-mp-copy-code" class="btn-small">COPY CODE</button>
+          </div>
+
+          <div class="lobby-slots-grid">
+            <div class="lobby-slot-card" id="slot-player-1">
+              <div class="slot-avatar">🏎️</div>
+              <div class="slot-name" id="lbl-mp-p1-name">PILOT 1 (HOST)</div>
+              <div class="slot-status ready-tag" id="lbl-mp-p1-status">READY</div>
+            </div>
+            <div class="lobby-slot-card" id="slot-player-2">
+              <div class="slot-avatar">🏎️</div>
+              <div class="slot-name" id="lbl-mp-p2-name">WAITING FOR PILOT...</div>
+              <div class="slot-status waiting-tag" id="lbl-mp-p2-status">NOT READY</div>
+            </div>
+          </div>
+
+          <div class="lobby-actions">
+            <button id="btn-mp-ready" class="btn-primary">TOGGLE READY</button>
+            <button id="btn-mp-leave" class="btn-secondary">LEAVE ROOM</button>
+          </div>
+          <div class="lobby-countdown-banner hidden" id="lbl-mp-countdown">SYNCHRONIZING TURBINES... 3</div>
+        </div>
+
+        <div class="modal-footer">
+          <div class="footer-credit">Made by Deepesh Kumar Pankaj</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pass & Play 2-Player Setup Screen -->
+    <div id="screen-duel-setup" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h2 class="section-title">PASS & PLAY (2-PLAYER DUEL)</h2>
+          <button id="btn-duel-setup-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="pilot-inputs-row">
+            <div class="pilot-input-card">
+              <span class="setting-title">PILOT 1 CALLSIGN</span>
+              <input type="text" id="input-duel-p1" value="PILOT 1" maxlength="12" class="styled-input" />
+            </div>
+            <div class="pilot-input-card">
+              <span class="setting-title">PILOT 2 CALLSIGN</span>
+              <input type="text" id="input-duel-p2" value="PILOT 2" maxlength="12" class="styled-input" />
+            </div>
+          </div>
+
+          <div class="customizer-label">SELECT DUEL TRACK</div>
+          <div class="env-cards-grid" id="duel-env-selector-grid"></div>
+
+          <div class="duel-rules-box">
+            <strong>DUEL RULES:</strong> Both pilots run the exact same track seed. Pilot 1 races first; Pilot 2 then races against Pilot 1's ghost. Highest score wins!
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-duel-start-p1" class="btn-primary">START PILOT 1 RUN</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pass & Play Handoff Screen -->
+    <div id="screen-duel-handoff" class="screen">
+      <div class="modal-card glass-card text-center">
+        <div class="modal-header">
+          <h2 class="section-title text-cyan">PILOT 1 COMPLETED!</h2>
+        </div>
+        <div class="modal-body">
+          <div class="handoff-score-badge">
+            <span class="sub-label">PILOT 1 BENCHMARK</span>
+            <div class="stat-num text-cyan" id="lbl-duel-p1-benchmark">0 PTS</div>
+          </div>
+          <div class="handoff-prompt-box">
+            <div class="handoff-icon">📱 ➔ 👥</div>
+            <div class="handoff-title">HAND DEVICE TO <span id="lbl-duel-p2-name">PILOT 2</span></div>
+            <div class="handoff-sub">Pilot 1's recorded ghost will race alongside you as the visual benchmark. Can you beat their line?</div>
+          </div>
+        </div>
+        <div class="modal-footer justify-center">
+          <button id="btn-duel-start-p2" class="btn-primary btn-hero">START PILOT 2 RUN</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pass & Play Duel Results Screen -->
+    <div id="screen-duel-results" class="screen">
+      <div class="results-card glass-card animated-in">
+        <div class="results-badge" id="duel-winner-badge">🏆 PILOT 1 WINS!</div>
+        <h2 class="results-score-title" id="duel-winner-subtitle">HEAD-TO-HEAD TELEMETRY COMPARISON</h2>
+
+        <div class="duel-comparison-grid">
+          <div class="duel-player-col" id="col-duel-p1">
+            <h3 class="duel-pname" id="lbl-duel-col-p1-name">PILOT 1</h3>
+            <div class="duel-stat-row">
+              <span>SCORE</span>
+              <strong id="lbl-duel-col-p1-score">0</strong>
+            </div>
+            <div class="duel-stat-row">
+              <span>DISTANCE</span>
+              <strong id="lbl-duel-col-p1-dist">0 M</strong>
+            </div>
+            <div class="duel-stat-row">
+              <span>TOP VELOCITY</span>
+              <strong id="lbl-duel-col-p1-speed">0 KM/H</strong>
+            </div>
+            <div class="duel-stat-row">
+              <span>STUNTS</span>
+              <strong id="lbl-duel-col-p1-stunts">0</strong>
+            </div>
+            <div class="duel-stat-row">
+              <span>CLEAN LANDINGS</span>
+              <strong id="lbl-duel-col-p1-landings">0</strong>
+            </div>
+          </div>
+
+          <div class="duel-vs-divider">VS</div>
+
+          <div class="duel-player-col" id="col-duel-p2">
+            <h3 class="duel-pname" id="lbl-duel-col-p2-name">PILOT 2</h3>
+            <div class="duel-stat-row">
+              <span>SCORE</span>
+              <strong id="lbl-duel-col-p2-score">0</strong>
+            </div>
+            <div class="duel-stat-row">
+              <span>DISTANCE</span>
+              <strong id="lbl-duel-col-p2-dist">0 M</strong>
+            </div>
+            <div class="duel-stat-row">
+              <span>TOP VELOCITY</span>
+              <strong id="lbl-duel-col-p2-speed">0 KM/H</strong>
+            </div>
+            <div class="duel-stat-row">
+              <span>STUNTS</span>
+              <strong id="lbl-duel-col-p2-stunts">0</strong>
+            </div>
+            <div class="duel-stat-row">
+              <span>CLEAN LANDINGS</span>
+              <strong id="lbl-duel-col-p2-landings">0</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="results-actions">
+          <button id="btn-duel-rematch" class="btn-primary">REMATCH (NEW SEED)</button>
+          <button id="btn-duel-menu" class="btn-secondary">MAIN MENU</button>
+        </div>
+        <div class="footer-credit text-center mt-15">Made by Deepesh Kumar Pankaj</div>
+      </div>
+    </div>
+
+    <!-- Daily Challenge Screen -->
+    <div id="screen-daily-challenge" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <div class="title-with-badge">
+            <h2 class="section-title">DAILY CHALLENGE</h2>
+            <span class="sub-label" id="lbl-daily-date">TODAY'S MISSION</span>
+          </div>
+          <button id="btn-daily-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="daily-hero-card">
+            <div class="daily-countdown-pill" id="lbl-daily-timer">RESET IN 14:32:05</div>
+            <h3 class="daily-title" id="lbl-daily-title">TURBINE OVERDRIVE</h3>
+            <p class="daily-desc" id="lbl-daily-desc">Complete the 3,500m course in Neon Dusk. Master stunts to top the leaderboard.</p>
+            <div class="daily-meta-grid">
+              <div class="daily-meta-item">
+                <span class="sub-label">ZONE</span>
+                <strong id="lbl-daily-env">NEON DUSK</strong>
+              </div>
+              <div class="daily-meta-item">
+                <span class="sub-label">DISTANCE</span>
+                <strong id="lbl-daily-dist">3,500 M</strong>
+              </div>
+              <div class="daily-meta-item">
+                <span class="sub-label">REWARD</span>
+                <strong class="text-cyan">+1,500 AC</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-daily-launch" class="btn-primary btn-hero">LAUNCH DAILY CHALLENGE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Friend Challenge Screen -->
+    <div id="screen-friend-challenge" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h2 class="section-title">FRIEND CHALLENGE CODE</h2>
+          <button id="btn-friend-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="customizer-label">PASTE FRIEND'S CHALLENGE CODE</div>
+          <div class="room-code-input-row">
+            <input type="text" id="input-friend-code" placeholder="e.g. AERO-ey..." class="styled-input" />
+            <button id="btn-friend-parse" class="btn-primary">PREVIEW</button>
+          </div>
+          <div id="friend-challenge-preview" class="challenge-preview-card hidden">
+            <div class="preview-header">
+              <span class="sub-label">CHALLENGER:</span>
+              <strong id="lbl-friend-creator" class="text-cyan">PILOT 01</strong>
+            </div>
+            <div class="preview-body">
+              <div>ZONE: <strong id="lbl-friend-env">NEON DUSK</strong></div>
+              <div>TARGET DISTANCE: <strong id="lbl-friend-dist">3,000 M</strong></div>
+              <div>TARGET SCORE TO BEAT: <strong id="lbl-friend-score" class="text-red">85,400 PTS</strong></div>
+            </div>
+            <button id="btn-friend-launch" class="btn-primary mt-15">ACCEPT CHALLENGE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaderboard Screen (Global & Local) -->
+    <div id="screen-records" class="screen">
+      <div class="modal-card glass-card modal-wide">
+        <div class="modal-header">
+          <div class="title-with-badge">
+            <h2 class="section-title">PILOT LEADERBOARDS & RECORDS</h2>
+            <span class="sub-label" id="lbl-records-mode-badge">GLOBAL HIGH-SPEED RANKINGS</span>
+          </div>
+          <button id="btn-records-back" class="btn-close">✕</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Callsign Setting Bar -->
+          <div class="callsign-bar">
+            <span class="sub-label">PILOT CALLSIGN:</span>
+            <input type="text" id="input-records-callsign" value="PILOT 01" maxlength="15" class="styled-input-inline" />
+            <button id="btn-save-callsign" class="btn-small">SAVE CALLSIGN</button>
+          </div>
+
+          <!-- Leaderboard Tabs -->
+          <div class="garage-tabs-bar">
+            <button class="garage-tab active" data-board-tab="global">GLOBAL ALL-TIME</button>
+            <button class="garage-tab" data-board-tab="daily">DAILY CHALLENGE</button>
+            <button class="garage-tab" data-board-tab="local">LOCAL OFFLINE</button>
+          </div>
+
+          <!-- Environment Filter -->
+          <div class="records-filter-bar">
+            <button class="filter-pill active" data-env-filter="all">ALL ZONES</button>
+            <button class="filter-pill" data-env-filter="neon_dusk">NEON DUSK</button>
+            <button class="filter-pill" data-env-filter="canyon_express">CANYON</button>
+            <button class="filter-pill" data-env-filter="monsoon_highway">MONSOON</button>
+            <button class="filter-pill" data-env-filter="orbital_skyway">ORBITAL</button>
+            <button id="btn-records-refresh" class="btn-small ml-auto">🔄 REFRESH</button>
+          </div>
+
+          <div class="records-status-note" id="lbl-records-offline-note">
+            <span>⚡ Offline-First Architecture: Personal and local records are always available without internet.</span>
+          </div>
+
+          <div class="records-table" id="records-list">
+            <!-- Dynamically populated entries -->
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="btn-records-clear" class="btn-secondary">RESET LOCAL SCORES</button>
+          <button id="btn-records-close" class="btn-primary">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievements Screen -->
+    <div id="screen-achievements" class="screen">
+      <div class="modal-card glass-card modal-wide">
+        <div class="modal-header">
+          <div class="title-with-badge">
+            <h2 class="section-title">PILOT ACHIEVEMENTS</h2>
+            <span class="sub-label">OFFLINE PROGRESSION MILESTONES</span>
+          </div>
+          <button id="btn-achievements-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="achievements-grid" id="achievements-list">
+            <!-- Dynamically populated with 12 achievements -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-achievements-close" class="btn-primary">BACK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- How To Play Modal Screen -->
+    <div id="screen-how" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h2 class="section-title">FLIGHT MANUAL & CONTROLS</h2>
+          <button id="btn-how-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="guide-grid">
+            <div class="guide-item">
+              <div class="key-badge">W / ↑</div>
+              <div class="guide-text"><strong>ACCELERATE</strong> — Surge forward with electric turbine power.</div>
+            </div>
+            <div class="guide-item">
+              <div class="key-badge">A / D or ← / →</div>
+              <div class="guide-text"><strong>STEER</strong> — Lateral highway lane shifts and steering grip.</div>
+            </div>
+            <div class="guide-item">
+              <div class="key-badge">SPACE</div>
+              <div class="guide-text"><strong>BOOST</strong> — Fire dual rocket thrusters. Consumes energy meter.</div>
+            </div>
+            <div class="guide-item">
+              <div class="key-badge">SHIFT</div>
+              <div class="guide-text"><strong>DRIFT</strong> — Slide into high-speed corners and earn combo points.</div>
+            </div>
+            <div class="guide-item">
+              <div class="key-badge">RAMPS</div>
+              <div class="guide-text"><strong>LAUNCH</strong> — Hit ramps to soar airborne above the skyway.</div>
+            </div>
+            <div class="guide-item">
+              <div class="key-badge">F</div>
+              <div class="guide-text"><strong>THRUST LIFT</strong> — Fire vertical lift thrusters while airborne.</div>
+            </div>
+            <div class="guide-item">
+              <div class="key-badge">Q / E</div>
+              <div class="guide-text"><strong>BARREL ROLL</strong> — Spin 360° in air for massive stunt score.</div>
+            </div>
+            <div class="guide-item">
+              <div class="key-badge">LANDING</div>
+              <div class="guide-text"><strong>LEVEL CAR</strong> — Align with track for Clean Landing bonus.</div>
+            </div>
+          </div>
+          <div class="mobile-note">
+            <span>📱 On touchscreens, dedicated on-screen buttons appear automatically with vibration feedback.</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-how-play" class="btn-primary">LET'S DRIVE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="screen-settings" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h2 class="section-title">SYSTEM SETTINGS</h2>
+          <button id="btn-settings-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body settings-body">
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">GRAPHICS QUALITY</div>
+              <div class="setting-sub">Shadows, particle density, and render scale</div>
+            </div>
+            <div class="btn-group" id="group-quality">
+              <button class="group-btn" data-quality="low">LOW</button>
+              <button class="group-btn active" data-quality="medium">MED</button>
+              <button class="group-btn" data-quality="high">HIGH</button>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">MASTER VOLUME</div>
+              <div class="setting-sub">Master sound synthesis output</div>
+            </div>
+            <input type="range" id="slider-volume" min="0" max="100" value="80" class="styled-range" />
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">MUSIC SYNTH VOLUME</div>
+              <div class="setting-sub">Procedural cyberpunk bass groove</div>
+            </div>
+            <input type="range" id="slider-music" min="0" max="100" value="60" class="styled-range" />
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">SFX VOLUME</div>
+              <div class="setting-sub">Engine, thruster, skids, stunt cheers</div>
+            </div>
+            <input type="range" id="slider-sfx" min="0" max="100" value="90" class="styled-range" />
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">REDUCED MOTION</div>
+              <div class="setting-sub">Minimize high-speed camera shakes and tilts</div>
+            </div>
+            <input type="checkbox" id="check-motion" class="styled-checkbox" />
+          </div>
+
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-title">HAPTIC VIBRATION</div>
+              <div class="setting-sub">Tactile feedback on landings, boost, and crashes</div>
+            </div>
+            <input type="checkbox" id="check-vibration" checked class="styled-checkbox" />
+          </div>
+
+          <div class="setting-row danger-row">
+            <div class="setting-info">
+              <div class="setting-title text-red">RESET LOCAL DATA</div>
+              <div class="setting-sub">Clear all saved progress, upgrades, and records</div>
+            </div>
+            <button id="btn-reset-data" class="btn-danger-small">RESET DATA</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-settings-save" class="btn-primary">APPLY & CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Credits Screen -->
+    <div id="screen-credits" class="screen">
+      <div class="modal-card glass-card text-center">
+        <div class="modal-header">
+          <h2 class="section-title">CREDITS</h2>
+          <button id="btn-credits-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body credits-body">
+          <div class="credits-logo">AERORUSH: SKYBOUND</div>
+          <div class="credits-sub">A 3D Electric Hypercar Experience</div>
+          <div class="credits-primary">
+            <div class="credit-role">LEAD ENGINEER & CREATOR</div>
+            <div class="credit-name">Deepesh Kumar Pankaj</div>
+          </div>
+          <div class="credits-note">
+            Built with Three.js, TypeScript, Vite, Web Audio API, and Offline PWA Standards.<br/>
+            All car models, graphics, audio synthesizers, and branding are original creations.
+          </div>
+        </div>
+        <div class="modal-footer justify-center">
+          <button id="btn-credits-close" class="btn-primary">CLOSE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy & PWA Information Screen -->
+    <div id="screen-privacy" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h2 class="section-title">PRIVACY & OFFLINE PWA</h2>
+          <button id="btn-privacy-back" class="btn-close">✕</button>
+        </div>
+        <div class="modal-body privacy-body">
+          <div class="privacy-block">
+            <h3>🔒 100% PRIVATE & LOCAL</h3>
+            <p>AERORUSH: SKYBOUND respects your digital sovereignty. The game does not collect personal data, contains zero external trackers, uses no analytics, and does not require account creation.</p>
+          </div>
+          <div class="privacy-block">
+            <h3>⚡ OFFLINE PROGRESSIVE WEB APP (PWA)</h3>
+            <p><strong>First-Load Rule:</strong> When you open the website online for the first time, your browser caches the game engine, scripts, styles, and audio synthesizers via our Service Worker.</p>
+            <p>Once cached, AERORUSH is 100% playable anywhere without an internet connection — even on flights or subway commutes!</p>
+          </div>
+          <div class="privacy-block">
+            <h3>💾 LOCAL SAVE RESILIENCE</h3>
+            <p>All your unlocked liveries, vehicle upgrade levels, career medals, and personal records are stored locally in your device's browser storage using a versioned schema.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btn-privacy-close" class="btn-primary">UNDERSTOOD</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Character Dialogue Briefing Modal Overlay -->
+    <div id="dialog-overlay" class="dialog-card glass-card hidden">
+      <div class="dialog-avatar-wrap">
+        <div class="dialog-avatar" id="dialog-avatar-icon">👩‍🚀</div>
+        <div class="dialog-char-meta">
+          <div class="dialog-char-name" id="dialog-char-name">MIRA</div>
+          <div class="dialog-char-role" id="dialog-char-role">CHIEF AERODYNAMICS ENGINEER</div>
+        </div>
+      </div>
+      <div class="dialog-bubble" id="dialog-text">
+        Pilot, welcome to the cockpit. The VANTA XR dual turbines are primed.
+      </div>
+      <div class="dialog-actions">
+        <button id="btn-dialog-skip" class="btn-subtle">SKIP BRIEFING</button>
+        <button id="btn-dialog-continue" class="btn-primary">CONTINUE →</button>
+      </div>
+    </div>
+
+    <!-- HUD Overlay (Active during gameplay) -->
+    <div id="game-hud" class="hud-container hidden">
+      <!-- Top Bar: Score, Combo, Distance, Ghost Delta -->
+      <div class="hud-top">
+        <div class="hud-score-card">
+          <div class="hud-label">SCORE</div>
+          <div id="hud-score" class="hud-val-large">0</div>
+        </div>
+
+        <div class="hud-center-card">
+          <div id="hud-combo-badge" class="combo-badge hidden">
+            <span id="hud-combo-mult">1.5x</span>
+            <span class="combo-title">COMBO</span>
+          </div>
+          <div id="hud-trick-notification" class="trick-banner"></div>
+          <div id="hud-ghost-delta" class="ghost-tag hidden">+0.0 M vs GHOST</div>
+        </div>
+
+        <div class="hud-meta-card">
+          <div class="hud-meta-row">
+            <span class="hud-label">DISTANCE</span>
+            <span id="hud-distance" class="hud-val-mid">0 M</span>
+          </div>
+          <div class="hud-meta-row">
+            <span class="hud-label">TIME</span>
+            <span id="hud-timer" class="hud-val-mid">00:00</span>
+          </div>
+        </div>
+
+        <button id="btn-pause" class="btn-hud-pause" aria-label="Pause Game">⏸</button>
+      </div>
+
+      <!-- Center Countdown Overlay -->
+      <div id="hud-countdown" class="countdown-overlay hidden">
+        <div id="countdown-number" class="countdown-text">3</div>
+      </div>
+
+      <!-- Crash / Impact Alert -->
+      <div id="hud-crash-alert" class="crash-alert hidden">
+        <div class="crash-title">SYSTEM OVERLOAD</div>
+        <div class="crash-sub">RECOVERING FLIGHT TELEMETRY...</div>
+      </div>
+
+      <!-- Tutorial Banner for first runs -->
+      <div id="hud-tutorial" class="tutorial-card">
+        <div class="tutorial-tip">💡 <strong>CONTROLS:</strong> [W/↑] Speed • [A/D] Steer • [SPACE] Boost • [SHIFT] Drift • Hit Ramps to Soar!</div>
+      </div>
+
+      <!-- Bottom Bar: Speedometer & Boost Energy -->
+      <div class="hud-bottom">
+        <!-- Energy & Thruster Gauge -->
+        <div class="energy-gauge-panel">
+          <div class="gauge-labels">
+            <span class="gauge-title">HYPER-ENERGY</span>
+            <span id="hud-energy-percent" class="gauge-val">100%</span>
+          </div>
+          <div class="energy-track">
+            <div id="hud-energy-bar" class="energy-fill"></div>
+          </div>
+          <div id="hud-flight-indicator" class="flight-tag hidden">AIRBORNE // THRUSTERS READY [F]</div>
+        </div>
+
+        <!-- Speedometer -->
+        <div class="speed-gauge-panel">
+          <div class="speed-digital">
+            <span id="hud-speed" class="speed-number">0</span>
+            <span class="speed-unit">KM/H</span>
+          </div>
+          <div class="speed-arc-wrap">
+            <svg class="speed-svg" viewBox="0 0 120 60">
+              <path class="speed-bg-arc" d="M 10 55 A 50 50 0 0 1 110 55" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="8" stroke-linecap="round"/>
+              <path id="speed-meter-arc" class="speed-fill-arc" d="M 10 55 A 50 50 0 0 1 110 55" fill="none" stroke="#00f0ff" stroke-width="8" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Touch Controls Overlay -->
+      <div id="touch-controls" class="touch-layer">
+        <div class="touch-left-cluster">
+          <button id="touch-steer-left" class="touch-btn" aria-label="Steer Left">◀</button>
+          <button id="touch-steer-right" class="touch-btn" aria-label="Steer Right">▶</button>
+        </div>
+        <div class="touch-right-cluster">
+          <div class="touch-action-row">
+            <button id="touch-thrust" class="touch-btn btn-thrust" aria-label="Flight Thrust">▲ THRUST</button>
+            <button id="touch-roll" class="touch-btn btn-roll" aria-label="Barrel Roll">↻ ROLL</button>
+          </div>
+          <div class="touch-action-row">
+            <button id="touch-drift" class="touch-btn btn-drift" aria-label="Drift">DRIFT</button>
+            <button id="touch-boost" class="touch-btn btn-boost" aria-label="Boost">⚡ BOOST</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Achievement Toast Notification -->
+    <div id="toast-achievement" class="toast-card glass-card hidden">
+      <div class="toast-icon">🎖️</div>
+      <div class="toast-meta">
+        <div class="toast-title" id="toast-title">ACHIEVEMENT UNLOCKED</div>
+        <div class="toast-desc" id="toast-desc">Description of achievement</div>
+      </div>
+      <div class="toast-reward" id="toast-reward">+500 AC</div>
+    </div>
+
+    <!-- Pause Menu Modal -->
+    <div id="screen-paused" class="screen">
+      <div class="modal-card glass-card">
+        <div class="modal-header">
+          <h2 class="section-title">SYSTEM PAUSED</h2>
+        </div>
+        <div class="pause-actions">
+          <button id="btn-pause-resume" class="btn-primary">RESUME RUN</button>
+          <button id="btn-pause-restart" class="btn-secondary">RESTART</button>
+          <button id="btn-pause-settings" class="btn-secondary">SETTINGS</button>
+          <button id="btn-pause-quit" class="btn-secondary">ABORT TO MENU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results / Mission Summary Screen -->
+    <div id="screen-results" class="screen">
+      <div class="results-card glass-card animated-in">
+        <div class="results-badge" id="results-badge">MISSION COMPLETE</div>
+        <h2 class="results-score-title">FINAL SCORE</h2>
+        <div id="results-score" class="results-score-val">0</div>
+        <div id="results-record-alert" class="new-record-tag hidden">★ NEW ALL-TIME RECORD! ★</div>
+        <div id="results-credits-reward" class="credits-reward-tag">+1,200 AeroCredits Earned</div>
+
+        <div class="results-grid">
+          <div class="results-stat">
+            <div class="stat-lbl">DISTANCE</div>
+            <div id="results-dist" class="stat-num">0 M</div>
+          </div>
+          <div class="results-stat">
+            <div class="stat-lbl">STUNTS</div>
+            <div id="results-stunts" class="stat-num">0</div>
+          </div>
+          <div class="results-stat">
+            <div class="stat-lbl">CLEAN LANDINGS</div>
+            <div id="results-landings" class="stat-num">0</div>
+          </div>
+          <div class="results-stat">
+            <div class="stat-lbl">ENERGY CELLS</div>
+            <div id="results-pickups" class="stat-num">0</div>
+          </div>
+          <div class="results-stat">
+            <div class="stat-lbl">MAX SPEED</div>
+            <div id="results-maxspeed" class="stat-num">0 KM/H</div>
+          </div>
+          <div class="results-stat">
+            <div class="stat-lbl">MAX COMBO</div>
+            <div id="results-maxcombo" class="stat-num">1.0x</div>
+          </div>
+        </div>
+
+        <div class="results-actions">
+          <button id="btn-results-retry" class="btn-primary">
+            <span class="btn-icon">⚡</span>
+            <span>RACE AGAIN</span>
+          </button>
+          <button id="btn-results-submit" class="btn-primary">
+            <span class="btn-icon">🌐</span>
+            <span>TRANSMIT SCORE</span>
+          </button>
+          <button id="btn-results-card" class="btn-secondary">
+            <span class="btn-icon">🖼️</span>
+            <span>DOWNLOAD CARD</span>
+          </button>
+          <button id="btn-results-share" class="btn-secondary">
+            <span class="btn-icon">📤</span>
+            <span>SHARE RESULT</span>
+          </button>
+          <button id="btn-results-ad" class="btn-secondary">
+            <span class="btn-icon">📺</span>
+            <span>SPONSOR (+500 AC)</span>
+          </button>
+          <button id="btn-results-menu" class="btn-secondary">
+            <span>MAIN MENU</span>
+          </button>
+        </div>
+        <div class="footer-credit text-center mt-15">Made by Deepesh Kumar Pankaj</div>
+      </div>
+    </div>
+
+    <!-- Fallback / Error Modal -->
+    <div id="screen-error" class="screen">
+      <div class="modal-card glass-card">
+        <h2 class="section-title text-red">GRAPHICS INITIALIZATION ERROR</h2>
+        <p id="error-message" class="error-text">WebGL 2.0 is required but could not be initialized on this browser/GPU configuration.</p>
+        <button onclick="location.reload()" class="btn-primary">RELOAD SYSTEM</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
