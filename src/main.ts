@@ -88,8 +88,13 @@ class AeroRushApp {
       return;
     }
 
-    // 1. Initialize WebGL Renderer
+    // 1. Initialize WebGL Renderer with robust error boundary
     try {
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || (canvas as any).getContext('experimental-webgl');
+      if (!gl) {
+        throw new Error('WebGL is not supported by your browser or graphics hardware.');
+      }
+
       this.renderer = new THREE.WebGLRenderer({
         canvas,
         antialias: true,
@@ -101,9 +106,15 @@ class AeroRushApp {
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
       this.renderer.toneMappingExposure = 1.15;
-    } catch (err) {
+    } catch (err: any) {
       console.error('WebGL Initialization failed:', err);
+      const loaderEl = document.getElementById('screen-loading');
+      if (loaderEl) loaderEl.classList.remove('active');
       const errEl = document.getElementById('screen-error');
+      const msgEl = document.getElementById('error-message');
+      if (msgEl) {
+        msgEl.textContent = `WebGL 3D graphics could not be initialized: ${err?.message || 'Context unavailable'}. Please verify hardware acceleration is enabled in your browser settings.`;
+      }
       if (errEl) errEl.classList.add('active');
       return;
     }

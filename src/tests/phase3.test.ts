@@ -5,6 +5,7 @@ import { FriendChallengeService } from '../services/FriendChallenge';
 import { OnlineLeaderboardService } from '../services/OnlineLeaderboard';
 import { PassAndPlayManager } from '../competition/PassAndPlay';
 import { AdManager } from '../monetization/AdManager';
+import { MultiplayerClient } from '../services/MultiplayerClient';
 import { ScoreSummary } from '../scoring/ScoreManager';
 
 describe('Phase 3: Daily Challenge Determinism & Scheduling', () => {
@@ -263,5 +264,54 @@ describe('Phase 3: Monetization & Ad Adapter Safety', () => {
 
     // Initial state before completion
     expect(rewardGranted).toBe(false);
+  });
+
+  it('strictly validates publisher ID format matching ca-pub-XXXXXXXXXXXXXXXX', () => {
+    expect(AdManager.isValidPublisherId('ca-pub-1234567890123456')).toBe(true);
+    expect(AdManager.isValidPublisherId('CA-PUB-9876543210')).toBe(true);
+    expect(AdManager.isValidPublisherId('invalid-publisher-id')).toBe(false);
+    expect(AdManager.isValidPublisherId('')).toBe(false);
+    expect(AdManager.isValidPublisherId('pub-12345678')).toBe(false);
+  });
+
+  it('rejects simulated reward grants in production mode when provider is absent', () => {
+    const prodAdMgr = new AdManager({ isDevMode: false });
+    let rewardGranted = false;
+    let failureReason = '';
+
+    prodAdMgr.showRewardedAd(
+      () => {
+        rewardGranted = true;
+      },
+      (reason) => {
+        failureReason = reason;
+      }
+    );
+
+    // In production without provider, it must immediately fail safely without granting credits
+    expect(rewardGranted).toBe(false);
+    expect(failureReason).toMatch(/unavailable|offline/i);
+  });
+
+  it('rejects impossible scores that violate physical telemetry bounds', () => {
+    const service = new OnlineLeaderboardService();
+    // 100 meters driven cannot realistically generate 5,000,000 score
+    const impossible = service.validateSubmission({
+      playerName: 'SPEED_HACKER',
+      score: 5000000,
+      distanceMeters: 100,
+      maxSpeedKmH: 400,
+      stuntsExecuted: 0,
+      environmentId: 'neon_dusk',
+    });
+    expect(impossible.valid).toBe(false);
+    expect(impossible.reason).toContain('physical limits');
+  });
+
+  it('validates safe multiplayer endpoint resolution', () => {
+    const endpoint = MultiplayerClient.resolveEndpoint();
+    // Under vitest / node environment, isLocalhost is true or non-browser fallback
+    expect(endpoint).toBeDefined();
+    expect(typeof endpoint.configured).toBe('boolean');
   });
 });

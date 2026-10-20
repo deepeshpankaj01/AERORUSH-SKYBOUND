@@ -1,5 +1,15 @@
 -- AERORUSH: SKYBOUND - Supabase Leaderboard Schema & Row-Level Security
 -- Production Database Migration for High-Speed Arcade Leaderboards
+--
+-- ARCHITECTURE & SECURITY NOTICE:
+-- The `verification_hash` column stores a client-generated checksum intended as a lightweight
+-- tamper-detection heuristic against casual payload editing or transmission corruption.
+-- In a client-authoritative browser game without server-side physics simulation, client hashes
+-- are NOT a replacement for trusted server-side anti-cheat.
+-- Instead, the database enforces authoritative boundary constraints via CHECK constraints and RLS:
+-- 1. Hard caps on speed, distance, stunts, and player name formatting.
+-- 2. Plausibility sanity bounds ensuring score cannot exceed theoretical performance limits
+--    (score <= (distance_meters * 60) + (stunts_count * 2500) + 20000).
 
 -- 1. Create Leaderboards Table
 CREATE TABLE IF NOT EXISTS public.leaderboards (
@@ -14,7 +24,9 @@ CREATE TABLE IF NOT EXISTS public.leaderboards (
     challenge_type VARCHAR(16) NOT NULL DEFAULT 'all_time' CHECK (challenge_type IN ('all_time', 'daily', 'weekly')),
     challenge_date VARCHAR(16),
     verification_hash VARCHAR(64),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    -- Plausibility constraint: score cannot exceed theoretical arcade maximum for the run
+    CONSTRAINT chk_plausible_score CHECK (score <= ((distance_meters * 60) + (stunts_count * 2500) + 20000))
 );
 
 -- 2. Indexes for High-Performance Leaderboard Retrieval
@@ -41,7 +53,7 @@ FOR SELECT
 TO public
 USING (true);
 
--- 5. Policy: Anonymous Score Submission with Sanitization
+-- 5. Policy: Anonymous Score Submission with Strict Sanitization and Bounds Checking
 CREATE POLICY "Public score submission"
 ON public.leaderboards
 FOR INSERT
@@ -50,9 +62,16 @@ WITH CHECK (
     score >= 0 AND 
     score <= 10000000 AND 
     distance_meters >= 0 AND 
-    length(player_name) >= 2 AND 
-    length(player_name) <= 16
+    distance_meters <= 500000 AND
+    max_speed_kmh >= 0 AND
+    max_speed_kmh <= 650 AND
+    stunts_count >= 0 AND
+    stunts_count <= 500 AND
+    length(trim(player_name)) >= 2 AND
+    length(player_name) <= 16 AND
+    -- Authoritative sanity check: score vs distance and stunts
+    score <= ((distance_meters * 60) + (stunts_count * 2500) + 20000)
 );
 
--- 6. Rate Limiting Support Function (Optional Postgres trigger or Edge function)
+-- 6. Table documentation
 COMMENT ON TABLE public.leaderboards IS 'AERORUSH: SKYBOUND Hypercar Global Leaderboard - Made by Deepesh Kumar Pankaj';

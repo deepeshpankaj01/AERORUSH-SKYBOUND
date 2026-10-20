@@ -22,20 +22,32 @@ export class AdManager {
   private isInitialized: boolean = false;
 
   constructor(config?: AdManagerConfig) {
-    this.clientId = config?.clientId || import.meta.env.VITE_ADSENSE_CLIENT_ID || '';
+    const rawId = config?.clientId ?? (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_ADSENSE_CLIENT_ID : '');
+    this.clientId = (rawId || '').trim();
     this.cooldownMs = config?.interstitialCooldownMs ?? 180000; // 3 minutes
     this.runFrequency = config?.interstitialRunFrequency ?? 3;  // 1 ad per 3 completed runs
-    this.isDevMode = config?.isDevMode ?? import.meta.env.DEV;
+    this.isDevMode = config?.isDevMode ?? (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.DEV === true : false);
 
     this.initAdSense();
+  }
+
+  /**
+   * Validate that the publisher ID matches the official Google AdSense pattern: ca-pub-XXXXXXXXXXXXXXXX
+   */
+  public static isValidPublisherId(id: string): boolean {
+    return /^ca-pub-\d+$/i.test(id.trim());
+  }
+
+  public isReady(): boolean {
+    return this.isInitialized;
   }
 
   private initAdSense(): void {
     if (typeof window === 'undefined') return;
 
-    if (!this.clientId) {
+    if (!this.clientId || !AdManager.isValidPublisherId(this.clientId)) {
       if (this.isDevMode) {
-        console.log('[AdManager] Running in ad-free / offline mode (No VITE_ADSENSE_CLIENT_ID provided).');
+        console.log('[AdManager] Running in ad-free / offline mode (No valid VITE_ADSENSE_CLIENT_ID ca-pub-XXXX provided).');
       }
       return;
     }
@@ -92,43 +104,53 @@ export class AdManager {
     this.lastAdTimestamp = Date.now();
     this.completedRunsCount = 0;
 
-    if (!this.isInitialized) {
-      // Dev mode or offline/adblocked: finish immediately
+    let dismissedHandled = false;
+    const handleDismiss = () => {
+      if (dismissedHandled) return;
+      dismissedHandled = true;
       this.isAdShowing = false;
       onDismissed();
+    };
+
+    if (!this.isInitialized) {
+      // Offline, adblocked, or no valid publisher ID: finish immediately
+      handleDismiss();
       return;
     }
 
     const w = window as any;
     if (w.adBreak) {
-      w.adBreak({
-        type: 'next',
-        name: 'race_complete_interstitial',
-        beforeAd: () => {
-          if (this.isDevMode) console.log('[AdManager] Interstitial starting.');
-        },
-        afterAd: () => {
-          this.isAdShowing = false;
-          onDismissed();
-        },
-        adBreakDone: () => {
-          this.isAdShowing = false;
-          onDismissed();
-        },
-      });
+      try {
+        w.adBreak({
+          type: 'next',
+          name: 'race_complete_interstitial',
+          beforeAd: () => {
+            if (this.isDevMode) console.log('[AdManager] Interstitial starting.');
+          },
+          afterAd: () => {
+            handleDismiss();
+          },
+          adBreakDone: () => {
+            handleDismiss();
+          },
+        });
+      } catch {
+        handleDismiss();
+      }
     } else {
-      // Mock / fallback
-      if (this.isDevMode) console.log('[AdManager] Mock interstitial displayed.');
+      // Fallback
+      if (this.isDevMode) console.log('[AdManager] Mock interstitial in dev.');
       setTimeout(() => {
-        this.isAdShowing = false;
-        onDismissed();
+        handleDismiss();
       }, 500);
     }
   }
 
   /**
-   * Show Rewarded Ad with strict validation callback
-   * NEVER grants reward if skipped, failed, blocked, or closed prematurely
+   * Show Rewarded Ad with strict validation callback.
+   * - In production builds, simulated rewards are strictly disabled.
+   * - Callbacks (reward verified vs failed/skipped) are guaranteed to fire at most once.
+   * - Credits are granted only after confirmed full view by the provider.
    */
   public showRewardedAd(
     onRewardVerified: (credits: number) => void,
@@ -148,49 +170,68 @@ export class AdManager {
     this.isAdShowing = true;
     const rewardAmount = 500;
     let rewardGranted = false;
+    let outcomeHandled = false;
+
+    const dispatchReward = () => {
+      if (outcomeHandled) return;
+      outcomeHandled = true;
+      this.isAdShowing = false;
+      onRewardVerified(rewardAmount);
+    };
+
+    const dispatchFailure = (reason: string) => {
+      if (outcomeHandled) return;
+      outcomeHandled = true;
+      this.isAdShowing = false;
+      onAdFailedOrSkipped(reason);
+    };
 
     const w = window as any;
     if (w.adBreak && this.isInitialized) {
-      w.adBreak({
-        type: 'reward',
-        name: 'sponsor_aero_credits',
-        beforeAd: () => {
-          if (this.isDevMode) console.log('[AdManager] Rewarded ad started.');
-        },
-        afterAd: () => {
-          this.isAdShowing = false;
-          if (rewardGranted) {
-            onRewardVerified(rewardAmount);
-          } else {
-            onAdFailedOrSkipped('Transmission closed before reward completion.');
-          }
-        },
-        beforeReward: (showAdFn: () => void) => {
-          showAdFn();
-        },
-        adDismissed: () => {
-          this.isAdShowing = false;
-          onAdFailedOrSkipped('Transmission skipped.');
-        },
-        adViewed: () => {
-          // Explicit view completion verified by ad network
-          rewardGranted = true;
-        },
-        adBreakDone: () => {
-          this.isAdShowing = false;
-        },
-      });
+      try {
+        w.adBreak({
+          type: 'reward',
+          name: 'sponsor_aero_credits',
+          beforeAd: () => {
+            if (this.isDevMode) console.log('[AdManager] Rewarded ad transmission started.');
+          },
+          afterAd: () => {
+            if (rewardGranted) {
+              dispatchReward();
+            } else {
+              dispatchFailure('Transmission closed before reward completion.');
+            }
+          },
+          beforeReward: (showAdFn: () => void) => {
+            showAdFn();
+          },
+          adDismissed: () => {
+            dispatchFailure('Transmission skipped.');
+          },
+          adViewed: () => {
+            // Explicit view completion verified by ad network provider
+            rewardGranted = true;
+          },
+          adBreakDone: () => {
+            if (rewardGranted) {
+              dispatchReward();
+            } else {
+              dispatchFailure('Transmission ended without verified view.');
+            }
+          },
+        });
+      } catch (err) {
+        dispatchFailure('Ad provider runtime error.');
+      }
     } else {
-      // Simulated dev / preview mode for local testing
+      // In production builds: strictly disable simulation.
       if (this.isDevMode) {
-        console.log('[AdManager] Dev mode: Simulating 2-second rewarded transmission.');
+        console.warn('[AdManager] DEV ONLY SIMULATION: Simulating rewarded transmission for local testing. This is completely disabled in production.');
         setTimeout(() => {
-          this.isAdShowing = false;
-          onRewardVerified(rewardAmount);
+          dispatchReward();
         }, 1500);
       } else {
-        this.isAdShowing = false;
-        onAdFailedOrSkipped('Sponsor network unavailable at this time.');
+        dispatchFailure('Sponsor network unavailable at this time.');
       }
     }
   }

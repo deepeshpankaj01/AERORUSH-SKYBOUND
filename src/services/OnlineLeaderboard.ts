@@ -105,7 +105,13 @@ export class OnlineLeaderboardService {
   }
 
   /**
-   * Generate lightweight anti-tamper signature for score payload
+   * Generates a client-side integrity signature for score payload consistency.
+   *
+   * ARCHITECTURE & SECURITY NOTICE:
+   * This signature is a client-side tamper-detection heuristic designed to catch accidental
+   * corruption or casual payload manipulation in browser contexts. As with all client-executed code,
+   * it is NOT a replacement for trusted server-side physics simulation or authoritative anti-cheat.
+   * Database Row-Level Security (RLS) constraints provide the authoritative boundary.
    */
   public generateVerificationToken(payload: ScoreSubmissionPayload): string {
     const salt = 'AERORUSH_XR_SIG_2026';
@@ -120,7 +126,7 @@ export class OnlineLeaderboardService {
   }
 
   /**
-   * Validates client score values before dispatching
+   * Validates client score values and physical plausibility before dispatching
    */
   public validateSubmission(payload: ScoreSubmissionPayload): { valid: boolean; reason?: string } {
     if (payload.score < 0 || payload.score > 10000000) {
@@ -131,6 +137,15 @@ export class OnlineLeaderboardService {
     }
     if (payload.maxSpeedKmH < 0 || payload.maxSpeedKmH > 650) {
       return { valid: false, reason: 'Max speed telemetries invalid.' };
+    }
+    const stunts = payload.stuntsExecuted || 0;
+    if (stunts < 0 || stunts > 500) {
+      return { valid: false, reason: 'Stunt telemetry out of physical bounds.' };
+    }
+    // Theoretical maximum plausible score for recorded distance and stunts
+    const theoreticalMax = (payload.distanceMeters * 60) + (stunts * 2500) + 20000;
+    if (payload.score > theoreticalMax) {
+      return { valid: false, reason: 'Score exceeds physical limits for the recorded distance and stunts.' };
     }
     return { valid: true };
   }

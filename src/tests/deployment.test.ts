@@ -22,11 +22,12 @@ describe('Cloudflare Pages Deployment Configuration', () => {
 
     const content = fs.readFileSync(filePath, 'utf-8');
     expect(content).toContain('X-Content-Type-Options: nosniff');
-    expect(content).toContain('X-Frame-Options: DENY');
+    expect(content).toContain('X-Frame-Options: SAMEORIGIN');
+    expect(content).toContain('Referrer-Policy: strict-origin-when-cross-origin');
     expect(content).toContain('/assets/*');
     expect(content).toContain('max-age=31536000');
     expect(content).toContain('/sw.js');
-    expect(content).toContain('max-age=0');
+    expect(content).toContain('no-cache, no-store, must-revalidate');
   });
 
   it('verifies public/manifest.webmanifest is valid JSON and has mandatory PWA fields', () => {
@@ -72,6 +73,7 @@ describe('Cloudflare Pages Deployment Configuration', () => {
 
     expect(fs.existsSync(path.join(distDir, 'index.html'))).toBe(true);
     expect(fs.existsSync(path.join(distDir, 'sw.js'))).toBe(true);
+    expect(fs.existsSync(path.join(distDir, 'sw-assets.js'))).toBe(true);
     expect(fs.existsSync(path.join(distDir, 'manifest.webmanifest'))).toBe(true);
     expect(fs.existsSync(path.join(distDir, '_redirects'))).toBe(true);
     expect(fs.existsSync(path.join(distDir, '_headers'))).toBe(true);

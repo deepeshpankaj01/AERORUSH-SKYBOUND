@@ -29,9 +29,15 @@ export interface MultiplayerRoomInfo {
 
 export type MultiplayerStatus = 'OFFLINE' | 'CONNECTING' | 'CONNECTED' | 'IN_ROOM' | 'STARTING' | 'RACING';
 
+export interface MultiplayerEndpointResolution {
+  configured: boolean;
+  url: string | null;
+  reason?: string;
+}
+
 export class MultiplayerClient {
   private ws: WebSocket | null = null;
-  private serverUrl: string;
+  private endpointInfo: MultiplayerEndpointResolution;
   private status: MultiplayerStatus = 'OFFLINE';
   private playerId: string = '';
   private currentRoom: MultiplayerRoomInfo | null = null;
@@ -56,7 +62,7 @@ export class MultiplayerClient {
   public onError?: (msg: string) => void;
 
   constructor() {
-    this.serverUrl = import.meta.env.VITE_MULTIPLAYER_SERVER_URL || 'ws://localhost:8080';
+    this.endpointInfo = MultiplayerClient.resolveEndpoint();
     this.opponentCar = new CarModel();
     this.opponentMeshRoot = new THREE.Group();
     this.opponentMeshRoot.add(this.opponentCar.root);
@@ -69,6 +75,66 @@ export class MultiplayerClient {
 
     // Create 3D floating callsign nameplate above rival car
     this.createNameplate('RIVAL PILOT');
+  }
+
+  /**
+   * Safe endpoint resolution:
+   * - Does NOT silently default to ws://localhost:8080 on public websites.
+   * - Validates wss:// protocol when loaded over HTTPS.
+   * - Allows localhost ws:// ONLY during local development.
+   */
+  public static resolveEndpoint(): MultiplayerEndpointResolution {
+    const rawUrl = (import.meta.env.VITE_MULTIPLAYER_SERVER_URL || '').trim();
+    const isBrowser = typeof window !== 'undefined';
+    const hostname = isBrowser ? window.location.hostname : '';
+    const protocol = isBrowser ? window.location.protocol : '';
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || !hostname;
+
+    if (rawUrl) {
+      if (protocol === 'https:' && rawUrl.startsWith('ws://')) {
+        return {
+          configured: false,
+          url: null,
+          reason: 'Insecure WebSocket (ws://) blocked on HTTPS. A secure endpoint (wss://) is required for production.',
+        };
+      }
+      if (!isLocalhost && (rawUrl.includes('localhost') || rawUrl.includes('127.0.0.1'))) {
+        return {
+          configured: false,
+          url: null,
+          reason: 'Localhost multiplayer endpoints cannot be reached from the public web.',
+        };
+      }
+      return {
+        configured: true,
+        url: rawUrl,
+      };
+    }
+
+    if (isLocalhost) {
+      return {
+        configured: true,
+        url: 'ws://localhost:8080',
+      };
+    }
+
+    return {
+      configured: false,
+      url: null,
+      reason: 'Multiplayer server is not configured for this deployment. Please set VITE_MULTIPLAYER_SERVER_URL.',
+    };
+  }
+
+  public isConfigured(): boolean {
+    return this.endpointInfo.configured && !!this.endpointInfo.url;
+  }
+
+  public getConfigReason(): string | undefined {
+    return this.endpointInfo.reason;
+  }
+
+  public getServerUrl(): string | null {
+    return this.endpointInfo.url;
   }
 
   private createNameplate(text: string): void {
@@ -116,6 +182,15 @@ export class MultiplayerClient {
   }
 
   public connect(onConnected?: () => void, onError?: (err: string) => void): void {
+    if (!this.isConfigured() || !this.endpointInfo.url) {
+      const err = this.endpointInfo.reason || 'Multiplayer server is not configured.';
+      this.status = 'OFFLINE';
+      if (this.onStatusChange) this.onStatusChange('OFFLINE', err);
+      if (onError) onError(err);
+      if (this.onError) this.onError(err);
+      return;
+    }
+
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       if (onConnected) onConnected();
       return;
@@ -125,7 +200,7 @@ export class MultiplayerClient {
     if (this.onStatusChange) this.onStatusChange('CONNECTING');
 
     try {
-      this.ws = new WebSocket(this.serverUrl);
+      this.ws = new WebSocket(this.endpointInfo.url);
 
       const connectionTimeout = setTimeout(() => {
         if (this.status === 'CONNECTING') {
@@ -152,7 +227,7 @@ export class MultiplayerClient {
 
       this.ws.onerror = () => {
         clearTimeout(connectionTimeout);
-        const err = `Could not reach multiplayer relay at ${this.serverUrl}.`;
+        const err = `Could not reach multiplayer relay at ${this.endpointInfo.url || 'server'}.`;
         this.status = 'OFFLINE';
         if (this.onStatusChange) this.onStatusChange('OFFLINE', err);
         if (onError) onError(err);

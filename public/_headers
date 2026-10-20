@@ -4,15 +4,18 @@
 # Security Headers for all HTML documents and routes
 /*
   X-Content-Type-Options: nosniff
-  X-Frame-Options: DENY
+  X-Frame-Options: SAMEORIGIN
   Referrer-Policy: strict-origin-when-cross-origin
 
 # Never cache Service Worker on CDN edge or browser to ensure instant updates
 /sw.js
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/sw-assets.js
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /manifest.webmanifest
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-cache, no-store, must-revalidate
 
 # 1-year immutable caching for static bundled assets (Vite cache-busted hashes)
 /assets/*

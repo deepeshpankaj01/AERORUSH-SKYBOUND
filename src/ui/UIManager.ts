@@ -508,6 +508,10 @@ export class UIManager {
     });
 
     document.getElementById('btn-mp-create-room')?.addEventListener('click', () => {
+      if (!this.mpClient.isConfigured()) {
+        alert(this.mpClient.getConfigReason() || 'Multiplayer server is not configured for this deployment.');
+        return;
+      }
       const pilotName = this.onlineLeaderboard.getPlayerName();
       this.mpClient.createRoom({
         playerName: pilotName,
@@ -519,6 +523,10 @@ export class UIManager {
     });
 
     document.getElementById('btn-mp-join-room')?.addEventListener('click', () => {
+      if (!this.mpClient.isConfigured()) {
+        alert(this.mpClient.getConfigReason() || 'Multiplayer server is not configured for this deployment.');
+        return;
+      }
       const codeInput = document.getElementById('input-mp-room-code') as HTMLInputElement | null;
       const code = codeInput ? codeInput.value.trim().toUpperCase() : '';
       if (!code) {
@@ -608,14 +616,22 @@ export class UIManager {
 
     this.stateMgr.setState('MULTIPLAYER');
 
-    this.mpClient.connect(
-      () => {
-        if (statusEl) statusEl.textContent = 'STATUS: CONNECTED TO RELAY (READY)';
-      },
-      (err) => {
-        if (statusEl) statusEl.textContent = `STATUS: OFFLINE (${err})`;
+    if (!this.mpClient.isConfigured()) {
+      if (statusEl) {
+        statusEl.textContent = 'STATUS: UNCONFIGURED (RELAY SERVER REQUIRED)';
+        statusEl.title = this.mpClient.getConfigReason() || 'Set VITE_MULTIPLAYER_SERVER_URL to connect.';
       }
-    );
+    } else {
+      if (statusEl) statusEl.textContent = 'STATUS: CONNECTING TO RELAY...';
+      this.mpClient.connect(
+        () => {
+          if (statusEl) statusEl.textContent = 'STATUS: CONNECTED TO RELAY (READY)';
+        },
+        (err) => {
+          if (statusEl) statusEl.textContent = `STATUS: OFFLINE (${err})`;
+        }
+      );
+    }
   }
 
   private setupMultiplayerListeners(): void {
