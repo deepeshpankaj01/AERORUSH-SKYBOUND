@@ -65,9 +65,9 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // If navigation request and offline: fallback to cached index.html
+        // If navigation request and offline: fallback to cached index.html or root
         if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
+          return caches.match('./index.html').then((r) => r || caches.match('./') || caches.match('/'));
         }
       });
     })

@@ -462,13 +462,19 @@ class AeroRushApp {
 
   private registerServiceWorker(): void {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      const register = () => {
         navigator.serviceWorker.register('./sw.js').then((reg) => {
           console.log('AERORUSH PWA Service Worker active:', reg.scope);
         }).catch((err) => {
           console.warn('Service Worker registration skipped or blocked:', err);
         });
-      });
+      };
+
+      if (document.readyState === 'complete') {
+        register();
+      } else {
+        window.addEventListener('load', register);
+      }
     }
   }
 
