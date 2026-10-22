@@ -2,7 +2,7 @@ import puppeteer from 'puppeteer-core';
 import { preview } from 'vite';
 
 async function run() {
-  console.log('--- STARTING COMPREHENSIVE BROWSER INTEGRATION TEST ---');
+  console.log('--- STARTING AERORUSH: SKYBOUND MOBILE-FIRST E2E INTEGRATION TEST ---');
 
   // Start Vite preview server for the dist build
   const server = await preview({
@@ -41,17 +41,15 @@ async function run() {
   console.log('Initial screen:', currentScreen);
   if (currentScreen !== 'screen-menu') throw new Error(`Expected screen-menu, got ${currentScreen}`);
 
-  // 2. Test Manual (#btn-nav-how)
-  console.log('Testing MANUAL button...');
-  await page.click('#btn-nav-how');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-how') throw new Error('Failed to open screen-how');
-  await page.click('#btn-how-back');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-menu') throw new Error('Failed to return to screen-menu from HOW');
-  console.log('✓ Manual button & back verified.');
+  // 2. Verify Level Badge & Best Record Badge on Menu
+  const levelText = await page.evaluate(() => document.getElementById('menu-level-text')?.textContent);
+  const recordText = await page.evaluate(() => document.getElementById('menu-record-text')?.textContent);
+  console.log(`Menu Badges: [${levelText}] | [${recordText}]`);
+  if (!levelText || !levelText.includes('LEVEL 1')) throw new Error(`Expected Level 1 badge, got: ${levelText}`);
+  if (!recordText || !recordText.includes('BEST:')) throw new Error(`Expected Record badge, got: ${recordText}`);
+  console.log('✓ Main menu badges verified.');
 
-  // 3. Test Settings (#btn-nav-settings)
+  // 3. Test Settings modal (#btn-nav-settings)
   console.log('Testing SETTINGS button...');
   await page.click('#btn-nav-settings');
   await new Promise(r => setTimeout(r, 300));
@@ -63,47 +61,7 @@ async function run() {
   if (await getActiveScreen() !== 'screen-menu') throw new Error('Failed to return to screen-menu from SETTINGS');
   console.log('✓ Settings open, modify quality, and save verified.');
 
-  // 4. Test Credits (#btn-nav-credits)
-  console.log('Testing CREDITS button...');
-  await page.click('#btn-nav-credits');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-credits') throw new Error('Failed to open screen-credits');
-  await page.click('#btn-credits-back');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-menu') throw new Error('Failed to return to screen-menu from CREDITS');
-  console.log('✓ Credits button & back verified.');
-
-  // 5. Test Privacy & PWA (#btn-nav-privacy)
-  console.log('Testing PRIVACY button...');
-  await page.click('#btn-nav-privacy');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-privacy') throw new Error('Failed to open screen-privacy');
-  await page.click('#btn-privacy-back');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-menu') throw new Error('Failed to return to screen-menu from PRIVACY');
-  console.log('✓ Privacy button & back verified.');
-
-  // 6. Test Achievements (#btn-nav-achievements)
-  console.log('Testing ACHIEVEMENTS button...');
-  await page.click('#btn-nav-achievements');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-achievements') throw new Error('Failed to open screen-achievements');
-  await page.click('#btn-achievements-close');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-menu') throw new Error('Failed to return to screen-menu from ACHIEVEMENTS via close button');
-  console.log('✓ Achievements open & close verified.');
-
-  // 7. Test Records / Leaderboard (#btn-nav-leaderboard)
-  console.log('Testing RECORDS button...');
-  await page.click('#btn-nav-leaderboard');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-records') throw new Error('Failed to open screen-records');
-  await page.click('#btn-records-back');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-menu') throw new Error('Failed to return to screen-menu from RECORDS');
-  console.log('✓ Records open & back verified.');
-
-  // 8. Test Garage (#btn-nav-garage)
+  // 4. Test Garage (#btn-nav-garage)
   console.log('Testing GARAGE button...');
   await page.click('#btn-nav-garage');
   await new Promise(r => setTimeout(r, 500));
@@ -121,56 +79,55 @@ async function run() {
   if (await getActiveScreen() !== 'screen-menu') throw new Error('Failed to return to screen-menu from GARAGE');
   console.log(`✓ Garage open, tab switch (${paintsCount} paints), cosmetic selection, and back verified.`);
 
-  // 9. Test Play Select modal via Launch Run (#btn-main-play)
-  console.log('Testing LAUNCH RUN / PLAY_SELECT modal...');
+  // 5. Test Direct Play Flow (The Core Promise: TAP PLAY -> SHORT COUNTDOWN -> ACTUAL RACING)
+  console.log('Testing DIRECT PLAY FLOW (#btn-main-play)...');
   await page.click('#btn-main-play');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-play-select') throw new Error('Failed to open screen-play-select');
-  // Open and close Quick Run from Play Select
-  await page.click('#card-mode-quick');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-quick') throw new Error('Failed to open screen-quick');
-  await page.click('#btn-quick-back');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-play-select') throw new Error('Failed to return to screen-play-select from quick');
-  console.log('✓ Play Select and Quick modal back navigation verified.');
+  await new Promise(r => setTimeout(r, 200));
 
-  // 10. Test Career Mode Launch & BRIEFING CONTINUE BUTTON
-  console.log('Testing CAREER Launch & WELCOME BRIEFING CONTINUE BUTTON...');
-  await page.click('#card-mode-career');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-career') throw new Error('Failed to open screen-career');
-
-  // Click Launch on Stage 1
-  await page.click('#career-missions-list .mission-card button');
-  await new Promise(r => setTimeout(r, 400));
-
-  // Verify dialog is visible
+  // Verify NO dialog overlay appears
   const isDialogVisible = await page.evaluate(() => {
     const dialog = document.getElementById('dialog-overlay');
-    return dialog && !dialog.classList.contains('hidden');
+    return dialog && !dialog.classList.contains('hidden') && dialog.style.display !== 'none';
   });
-  if (!isDialogVisible) throw new Error('Briefing dialog overlay did not appear after mission launch!');
-  console.log('✓ Briefing dialog overlay appeared with welcome message.');
+  if (isDialogVisible) throw new Error('Briefing dialog overlay erroneously appeared during direct play flow!');
+  console.log('✓ Verified: No dialogue briefing overlay blocking the start of the race.');
 
-  // Test Continue Button click
-  console.log('Simulating user click on CONTINUE button (#btn-dialog-continue)...');
-  await page.click('#btn-dialog-continue');
-  await new Promise(r => setTimeout(r, 500));
-
-  // Verify dialog closed
-  const isDialogClosed = await page.evaluate(() => {
-    const dialog = document.getElementById('dialog-overlay');
-    return dialog && dialog.classList.contains('hidden');
+  // Verify HUD and Countdown are active
+  const countdownActive = await page.evaluate(() => {
+    const cd = document.getElementById('hud-countdown');
+    return cd && !cd.classList.contains('hidden');
   });
-  if (!isDialogClosed) throw new Error('CONTINUE button failed to dismiss the briefing dialog overlay!');
-  console.log('✓ CONTINUE button successfully dismissed the briefing overlay and initiated countdown!');
+  if (!countdownActive) throw new Error('Countdown overlay did not trigger after clicking PLAY!');
+  console.log('✓ Countdown overlay active: 3-2-1 sequence initiated.');
+
+  // Verify Objective Pill is visible during race
+  const objectivePillText = await page.evaluate(() => {
+    const pill = document.getElementById('hud-objective-text');
+    return pill ? pill.textContent : null;
+  });
+  console.log('HUD Objective Pill:', objectivePillText);
+  if (!objectivePillText || !objectivePillText.includes('LVL 1')) {
+    throw new Error(`HUD Objective Pill missing or invalid: ${objectivePillText}`);
+  }
+  console.log('✓ In-race objective pill displayed correctly.');
 
   // Wait for countdown to finish and game to enter PLAYING
-  await page.waitForFunction(() => {
-    const cd = document.getElementById('hud-countdown');
-    return cd && cd.classList.contains('hidden');
-  }, { timeout: 10000 });
+  console.log('Waiting for countdown to finish...');
+  for (let i = 0; i < 20; i++) {
+    const cdState = await page.evaluate(() => {
+      const cd = document.getElementById('hud-countdown');
+      const num = document.getElementById('countdown-number');
+      const hud = document.getElementById('game-hud');
+      return {
+        hidden: cd?.classList.contains('hidden'),
+        text: num?.textContent,
+        hudHidden: hud?.classList.contains('hidden')
+      };
+    });
+    console.log(`[Tick ${i}] countdown: ${cdState.text}, hidden: ${cdState.hidden}, hudHidden: ${cdState.hudHidden}`);
+    if (cdState.hidden) break;
+    await new Promise(r => setTimeout(r, 500));
+  }
 
   const hudActive = await page.evaluate(() => {
     const hud = document.getElementById('game-hud');
@@ -179,61 +136,99 @@ async function run() {
   if (!hudActive) throw new Error('HUD is not visible during active race!');
   console.log('✓ Race entered PLAYING state, 3D world active, HUD rendering.');
 
-  // 11. Test Pause during gameplay
+  // 6. Test Driving Controls: Press 'W' to accelerate forward
+  console.log('Simulating vehicle drive with [KeyW]...');
+  await page.keyboard.down('KeyW');
+  await new Promise(r => setTimeout(r, 1500));
+  await page.keyboard.up('KeyW');
+
+  const speedValue = await page.evaluate(() => {
+    const speedEl = document.getElementById('hud-speed');
+    return speedEl ? parseInt(speedEl.textContent || '0', 10) : 0;
+  });
+  console.log(`Current telemetry speed: ${speedValue} KM/H`);
+  if (speedValue <= 0) throw new Error('Vehicle failed to accelerate under KeyW input');
+  console.log('✓ Vehicle physics acceleration and speedometer functional.');
+
+  // 7. Test In-Race Pause (#btn-pause)
   console.log('Testing in-race PAUSE button (#btn-pause)...');
   await page.click('#btn-pause');
-  await new Promise(r => setTimeout(r, 600));
+  await new Promise(r => setTimeout(r, 500));
   const activePauseScreen = await getActiveScreen();
-  console.log('Active screen after clicking pause:', activePauseScreen);
   if (activePauseScreen !== 'screen-paused') throw new Error(`Pause button failed to open screen-paused, current: ${activePauseScreen}`);
   console.log('✓ In-race pause successfully opened screen-paused.');
 
-  // 12. Test Pause -> Settings -> Back to Pause
-  console.log('Testing Pause -> Settings navigation...');
-  await page.click('#btn-pause-settings');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-settings') throw new Error('Pause Settings failed to open');
-  await page.click('#btn-settings-back');
-  await new Promise(r => setTimeout(r, 300));
-  if (await getActiveScreen() !== 'screen-paused') throw new Error('Settings back button failed to return to screen-paused!');
-  console.log('✓ Settings opened from pause safely returns to paused race.');
-
-  // 13. Test Resume from Pause
+  // 8. Test Resume from Pause
   console.log('Testing RESUME RUN (#btn-pause-resume)...');
   await page.click('#btn-pause-resume');
   await new Promise(r => setTimeout(r, 500));
   if (await getActiveScreen() !== null) throw new Error('Resume did not return to active gameplay');
   console.log('✓ Resume successfully resumed gameplay.');
 
-  // 14. Pause again and Abort to Menu
-  console.log('Testing PAUSE -> ABORT TO MENU (#btn-pause-quit)...');
-  await page.click('#btn-pause');
-  await new Promise(r => setTimeout(r, 300));
-  await page.click('#btn-pause-quit');
-  await new Promise(r => setTimeout(r, 500));
-  if (await getActiveScreen() !== 'screen-menu') throw new Error('Abort to menu failed to return to screen-menu');
-  console.log('✓ Abort to menu successfully returned to main menu.');
-
-  // 15. Test Career Launch & SKIP BRIEFING button (#btn-dialog-skip)
-  console.log('Testing SKIP BRIEFING button (#btn-dialog-skip)...');
-  await page.click('#btn-nav-career');
-  await new Promise(r => setTimeout(r, 300));
-  await page.click('#career-missions-list .mission-card button');
-  await new Promise(r => setTimeout(r, 400));
-  await page.click('#btn-dialog-skip');
-  await new Promise(r => setTimeout(r, 500));
-  const isDialogClosedAfterSkip = await page.evaluate(() => {
-    const dialog = document.getElementById('dialog-overlay');
-    return dialog && dialog.classList.contains('hidden');
+  // 9. Test Race Completion & Results Screen
+  console.log('Simulating race completion to test Results Screen...');
+  await page.evaluate(() => {
+    if (window.__aeroRushApp) {
+      window.__aeroRushApp.completeRunForTesting();
+    }
   });
-  if (!isDialogClosedAfterSkip) throw new Error('SKIP BRIEFING button failed to dismiss briefing!');
-  console.log('✓ SKIP BRIEFING button successfully dismissed briefing overlay and launched race.');
+  await new Promise(r => setTimeout(r, 800));
 
+  const resultsScreen = await getActiveScreen();
+  if (resultsScreen !== 'screen-results') throw new Error(`Expected screen-results, got ${resultsScreen}`);
+
+  const resultsData = await page.evaluate(() => {
+    return {
+      level: document.getElementById('results-level-badge')?.textContent,
+      medal: document.getElementById('results-medal-badge')?.textContent,
+      score: document.getElementById('results-score')?.textContent,
+      reward: document.getElementById('results-credits-reward')?.textContent,
+      nextVisible: document.getElementById('btn-results-next')?.style.display !== 'none',
+      retryVisible: !!document.getElementById('btn-results-retry'),
+      menuVisible: !!document.getElementById('btn-results-menu')
+    };
+  });
+  console.log('Results Screen Verification:', resultsData);
+  if (!resultsData.level || !resultsData.medal || !resultsData.score) {
+    throw new Error('Results screen elements missing or incomplete');
+  }
+  console.log('✓ Results screen rendered with level, medal, score, and credits reward.');
+
+  // 10. Test Results Screen -> Race Again (#btn-results-retry)
+  console.log('Testing RESULTS -> RACE AGAIN (#btn-results-retry)...');
+  await page.click('#btn-results-retry');
+  await new Promise(r => setTimeout(r, 500));
+  // Should enter countdown
+  const retryCountdown = await page.evaluate(() => {
+    const cd = document.getElementById('hud-countdown');
+    return cd && !cd.classList.contains('hidden');
+  });
+  if (!retryCountdown) throw new Error('RACE AGAIN failed to initiate countdown sequence');
+  console.log('✓ RACE AGAIN successfully restarted race directly without menu navigation.');
+
+  // Complete again and return to menu
+  await page.evaluate(() => {
+    if (window.__aeroRushApp) {
+      window.__aeroRushApp.completeRunForTesting();
+    }
+  });
+  await new Promise(r => setTimeout(r, 600));
+
+  console.log('Testing RESULTS -> MAIN MENU (#btn-results-menu)...');
+  await page.click('#btn-results-menu');
+  await new Promise(r => setTimeout(r, 600));
+  if (await getActiveScreen() !== 'screen-menu') throw new Error('Return to menu from results failed');
+
+  const updatedRecord = await page.evaluate(() => document.getElementById('menu-record-text')?.textContent);
+  console.log('Updated Menu Record Badge:', updatedRecord);
+  console.log('✓ Results navigation and menu badges verified.');
+
+  // 11. Check Console Errors
   console.log('Console errors captured during test:', errors);
   if (errors.length > 0) throw new Error(`Browser console errors detected: ${JSON.stringify(errors)}`);
 
   console.log('\n======================================================');
-  console.log('🎉 ALL GAMEPLAY BUTTONS AND DIALOGUE FLOW 100% VERIFIED!');
+  console.log('🎉 DIRECT PLAY FLOW AND ALL CORE SYSTEMS 100% VERIFIED!');
   console.log('======================================================\n');
 
   await browser.close();

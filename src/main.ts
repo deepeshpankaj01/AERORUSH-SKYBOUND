@@ -766,8 +766,9 @@ class AeroRushApp {
       summary.energyPickups * 15;
 
     // Career Mission Evaluation
+    let missionResult: any = null;
     if (this.isCareerMode) {
-      const missionResult = this.careerMgr.evaluateMission({
+      missionResult = this.careerMgr.evaluateMission({
         score: summary.finalScore,
         distanceM: summary.distanceMeters,
         stuntsCount: summary.stuntsExecuted,
@@ -791,26 +792,17 @@ class AeroRushApp {
         }
 
         // Advance career unlock
-        const currentActiveMission = this.careerMgr.getActiveMission();
-        if (currentActiveMission) {
-          const currentIdx = CAREER_MISSIONS.findIndex(m => m.id === currentActiveMission.id);
-          this.progression.advanceCareerProgress(currentIdx + 1);
-        }
-
-        // Show dialogue feedback from character
-        setTimeout(() => {
-          this.uiMgr.showDialogue(
-            missionResult.mission.briefing.character,
-            missionResult.mission.briefing.role,
-            missionResult.feedbackMessage,
-            () => {}
-          );
-        }, 600);
+        const currentProgress = this.progression.getData().careerProgress;
+        this.progression.advanceCareerProgress(currentProgress + 1);
       }
     }
 
     this.progression.addCredits(creditsEarned);
-    this.uiMgr.populateResults(summary, creditsEarned);
+    this.uiMgr.populateResults(summary, creditsEarned, missionResult || undefined);
+  }
+
+  public completeRunForTesting(): void {
+    this.completeRun();
   }
 
   public dispose(): void {
@@ -825,5 +817,5 @@ class AeroRushApp {
 
 // Bootstrap on DOMContentLoaded
 window.addEventListener('DOMContentLoaded', () => {
-  new AeroRushApp();
+  (window as any).__aeroRushApp = new AeroRushApp();
 });

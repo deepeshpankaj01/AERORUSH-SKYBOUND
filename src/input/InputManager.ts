@@ -210,6 +210,10 @@ export class InputManager {
     attachPointerHandler('touch-steer-right', (active) => { this.state.steerRight = active; });
     attachPointerHandler('touch-brake', (active) => { this.state.brake = active; });
     attachPointerHandler('touch-boost', (active) => { this.state.boost = active; });
+    attachPointerHandler('touch-stunt', (active) => {
+      this.state.rollRight = active;
+      this.state.thruster = active;
+    });
     attachPointerHandler('touch-drift', (active) => { this.state.drift = active; });
     attachPointerHandler('touch-thrust', (active) => { this.state.thruster = active; });
     attachPointerHandler('touch-roll', (active) => {

@@ -37,6 +37,7 @@ export class ScoreManager {
   // Notification callback for HUD
   public onTrickAnnouncement: ((label: string, bonus: number) => void) | null = null;
   public onComboChange: ((mult: number) => void) | null = null;
+  private memoryRecords: HighScoreRecord[] = [];
 
   constructor() {
     this.reset();
@@ -162,17 +163,15 @@ export class ScoreManager {
   }
 
   public finalizeSummary(): ScoreSummary {
-    const records = this.getRecords();
-    const isNewRecord = records.length === 0 || this.currentScore > records[0].score;
+    const previousBest = this.getPersonalBest();
+    const isNewRecord = this.currentScore > previousBest && this.currentScore > 0;
 
-    if (this.currentScore > 0) {
-      this.saveRecord({
-        score: this.currentScore,
-        distance: Math.round(this.distanceMeters),
-        stunts: this.stuntsCount,
-        date: new Date().toLocaleDateString(),
-      });
-    }
+    this.saveRecord({
+      score: this.currentScore,
+      distance: Math.round(this.distanceMeters),
+      stunts: this.stuntsCount,
+      date: new Date().toLocaleDateString(),
+    });
 
     return {
       finalScore: this.currentScore,
@@ -182,8 +181,13 @@ export class ScoreManager {
       energyPickups: this.energyPickupsCount,
       maxSpeedKmH: this.maxSpeedKmH,
       maxCombo: this.maxComboAchieved,
-      isNewRecord: isNewRecord && this.currentScore > 0,
+      isNewRecord,
     };
+  }
+
+  public getPersonalBest(): number {
+    const records = this.getRecords();
+    return records.length > 0 ? records[0].score : 0;
   }
 
   public getRecords(): HighScoreRecord[] {
@@ -193,32 +197,33 @@ export class ScoreManager {
         if (data) {
           return JSON.parse(data) as HighScoreRecord[];
         }
+        return [];
       }
     } catch (e) {
       console.warn('Could not read records from localStorage:', e);
     }
-    return [
-      { score: 14500, distance: 1850, stunts: 12, date: 'PILOT A1' },
-      { score: 9800, distance: 1240, stunts: 8, date: 'PILOT X' },
-      { score: 6200, distance: 890, stunts: 5, date: 'PILOT V' },
-    ];
+    return this.memoryRecords;
   }
 
   public saveRecord(record: HighScoreRecord): void {
+    const records = this.getRecords();
+    records.push(record);
+    records.sort((a, b) => b.score - a.score);
+    const top5 = records.slice(0, 5);
+
     try {
       if (typeof localStorage !== 'undefined') {
-        const records = this.getRecords();
-        records.push(record);
-        records.sort((a, b) => b.score - a.score);
-        const top5 = records.slice(0, 5);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(top5));
+        return;
       }
     } catch (e) {
       console.warn('Could not save record to localStorage:', e);
     }
+    this.memoryRecords = top5;
   }
 
   public clearRecords(): void {
+    this.memoryRecords = [];
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem(STORAGE_KEY);

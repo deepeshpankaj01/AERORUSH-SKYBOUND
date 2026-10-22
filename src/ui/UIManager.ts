@@ -189,9 +189,7 @@ export class UIManager {
     this.bindDomEvents();
     this.setupNetworkMonitor();
     this.updateCreditsDisplay();
-    this.setupMultiplayerListeners();
-    this.setupDailyChallengeTicker();
-    this.checkUrlForFriendChallenge();
+    this.updateMenuBadges();
 
     // Listen to state changes
     this.stateMgr.onStateChange((next, prev) => this.handleStateTransition(next, prev));
@@ -254,7 +252,7 @@ export class UIManager {
 
   private bindDomEvents(): void {
     // Main Menu Nav Buttons
-    document.getElementById('btn-main-play')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
+    document.getElementById('btn-main-play')?.addEventListener('click', () => this.launchCurrentLevel());
     document.getElementById('btn-nav-career')?.addEventListener('click', () => this.openCareer());
     document.getElementById('btn-nav-quick')?.addEventListener('click', () => this.openQuickRun());
     document.getElementById('btn-nav-stunts')?.addEventListener('click', () => this.stateMgr.setState('STUNT_SCHOOL'));
@@ -471,22 +469,18 @@ export class UIManager {
       });
     });
 
-    // 2. Results Screen Phase 3 Actions
+    // 2. Results Screen Actions
+    document.getElementById('btn-results-next')?.addEventListener('click', () => {
+      this.launchCurrentLevel();
+    });
+
     document.getElementById('btn-results-retry')?.addEventListener('click', () => {
-      // Check interstitial frequency cap before restart
-      if (this.adManager.canShowInterstitial()) {
-        this.adManager.showInterstitial(() => this.handlers.onRestartRace());
-      } else {
-        this.handlers.onRestartRace();
-      }
+      this.handlers.onRestartRace();
     });
 
     document.getElementById('btn-results-menu')?.addEventListener('click', () => {
-      if (this.adManager.canShowInterstitial()) {
-        this.adManager.showInterstitial(() => this.handlers.onAbortToMenu());
-      } else {
-        this.handlers.onAbortToMenu();
-      }
+      this.updateMenuBadges();
+      this.handlers.onAbortToMenu();
     });
 
     document.getElementById('btn-results-submit')?.addEventListener('click', () => this.submitResultsToLeaderboard());
@@ -974,27 +968,108 @@ export class UIManager {
 
   // ================= RESULTS SCREEN ACTIONS =================
 
-  public populateResults(summary: ScoreSummary, creditsEarned: number): void {
+  public launchCurrentLevel(levelIndexOverride?: number): void {
+    const levelIdx = levelIndexOverride !== undefined ? levelIndexOverride : this.progression.getData().careerProgress;
+    const mission = this.careerMgr.startLevel(levelIdx);
+
+    const objGoal = mission.objectives.length > 0 ? mission.objectives[0].label : mission.subtitle;
+    this.setHudObjective(`LVL ${levelIdx + 1}: ${mission.title.toUpperCase()} • ${objGoal.toUpperCase()}`);
+
+    this.handlers.onStartRace({
+      environmentId: mission.environmentId,
+      stageLength: mission.stageLength,
+      isCareer: true,
+      seed: 100000 + levelIdx * 777,
+      isGhost: true,
+    });
+  }
+
+  public setHudObjective(text: string): void {
+    const pill = document.getElementById('hud-objective-pill');
+    const label = document.getElementById('hud-objective-text');
+    if (label) label.textContent = text;
+    if (pill) pill.classList.remove('hidden');
+  }
+
+  public updateMenuBadges(): void {
+    const levelIdx = this.progression.getData().careerProgress;
+    const mission = this.careerMgr.getLevel(levelIdx);
+    const levelText = document.getElementById('menu-level-text');
+    if (levelText) {
+      levelText.textContent = `LEVEL ${levelIdx + 1} • ${mission.title.toUpperCase()}`;
+    }
+
+    const bestScore = this.scoreMgr.getPersonalBest();
+    const recordText = document.getElementById('menu-record-text');
+    if (recordText) {
+      recordText.textContent = `BEST: ${bestScore > 0 ? bestScore.toLocaleString() + ' PTS' : '0 PTS'}`;
+    }
+  }
+
+  public populateResults(summary: ScoreSummary, creditsEarned: number, missionResult?: any): void {
     this.lastSummary = summary;
     this.adManager.onRunCompleted();
 
-    const elScore = document.getElementById('results-score');
-    const elDist = document.getElementById('results-dist');
-    const elStunts = document.getElementById('results-stunts');
-    const elLandings = document.getElementById('results-landings');
-    const elPickups = document.getElementById('results-pickups');
-    const elMaxSpeed = document.getElementById('results-maxspeed');
-    const elMaxCombo = document.getElementById('results-maxcombo');
+    const currentLevelIdx = this.progression.getData().careerProgress;
+    const playedLevelIdx = missionResult?.passed ? Math.max(0, currentLevelIdx - 1) : currentLevelIdx;
+    const currentMission = this.careerMgr.getLevel(playedLevelIdx);
+
+    // Update level badge
+    const levelBadge = document.getElementById('results-level-badge');
+    if (levelBadge) {
+      levelBadge.textContent = `LEVEL ${playedLevelIdx + 1} • ${currentMission.title.toUpperCase()}`;
+    }
+
+    // Update medal badge
+    const medalBadge = document.getElementById('results-medal-badge');
+    if (medalBadge) {
+      if (missionResult?.passed && missionResult.medal) {
+        medalBadge.className = `medal-badge ${missionResult.medal}`;
+        const medalIcons: Record<string, string> = { gold: '🥇 GOLD MEDAL', silver: '🥈 SILVER MEDAL', bronze: '🥉 BRONZE MEDAL' };
+        medalBadge.textContent = medalIcons[missionResult.medal] || 'MISSION COMPLETE';
+      } else if (missionResult && !missionResult.passed) {
+        medalBadge.className = 'medal-badge failed';
+        medalBadge.textContent = 'OBJECTIVE NOT MET';
+      } else {
+        medalBadge.className = 'medal-badge gold';
+        medalBadge.textContent = 'RUN FINISHED';
+      }
+    }
+
+    // Animated score count-up
+    const scoreEl = document.getElementById('results-score');
+    if (scoreEl) {
+      const targetScore = summary.finalScore;
+      const duration = 800;
+      const startTime = performance.now();
+      const animateScore = (now: number) => {
+        const progress = Math.min(1, (now - startTime) / duration);
+        const current = Math.floor(targetScore * (1 - Math.pow(1 - progress, 3)));
+        scoreEl.textContent = current.toLocaleString();
+        if (progress < 1) {
+          requestAnimationFrame(animateScore);
+        } else {
+          scoreEl.textContent = targetScore.toLocaleString();
+        }
+      };
+      requestAnimationFrame(animateScore);
+    }
+
+    const distEl = document.getElementById('results-dist');
+    const stuntsEl = document.getElementById('results-stunts');
+    const landingsEl = document.getElementById('results-landings');
+    const pickupsEl = document.getElementById('results-pickups');
+    const maxspeedEl = document.getElementById('results-maxspeed');
+    const maxcomboEl = document.getElementById('results-maxcombo');
     const elRecordAlert = document.getElementById('results-record-alert');
     const elCreditsReward = document.getElementById('results-credits-reward');
 
-    if (elScore) elScore.textContent = summary.finalScore.toLocaleString();
-    if (elDist) elDist.textContent = `${summary.distanceMeters} M`;
-    if (elStunts) elStunts.textContent = `${summary.stuntsExecuted}`;
-    if (elLandings) elLandings.textContent = `${summary.cleanLandings}`;
-    if (elPickups) elPickups.textContent = `${summary.energyPickups}`;
-    if (elMaxSpeed) elMaxSpeed.textContent = `${summary.maxSpeedKmH} KM/H`;
-    if (elMaxCombo) elMaxCombo.textContent = `${summary.maxCombo.toFixed(1)}x`;
+    if (distEl) distEl.textContent = `${summary.distanceMeters.toLocaleString()} M`;
+    if (stuntsEl) stuntsEl.textContent = `${summary.stuntsExecuted}`;
+    if (landingsEl) landingsEl.textContent = `${summary.cleanLandings}`;
+    if (pickupsEl) pickupsEl.textContent = `${summary.energyPickups}`;
+    if (maxspeedEl) maxspeedEl.textContent = `${Math.round(summary.maxSpeedKmH)} KM/H`;
+    if (maxcomboEl) maxcomboEl.textContent = `${summary.maxCombo.toFixed(1)}x`;
 
     if (elCreditsReward) {
       elCreditsReward.textContent = `+${creditsEarned.toLocaleString()} AeroCredits Earned`;
@@ -1008,12 +1083,17 @@ export class UIManager {
       }
     }
 
-    // Reset submit button state
-    const submitBtn = document.getElementById('btn-results-submit');
-    if (submitBtn) {
-      submitBtn.removeAttribute('disabled');
-      submitBtn.innerHTML = '<span class="btn-icon">🌐</span><span>TRANSMIT SCORE</span>';
+    // Configure NEXT LEVEL button
+    const nextBtn = document.getElementById('btn-results-next');
+    if (nextBtn) {
+      if (missionResult && !missionResult.passed) {
+        nextBtn.style.display = 'none';
+      } else {
+        nextBtn.style.display = 'flex';
+      }
     }
+
+    this.updateMenuBadges();
   }
 
   private async submitResultsToLeaderboard(): Promise<void> {
@@ -1140,6 +1220,10 @@ export class UIManager {
       }
     } else {
       this.hudContainer?.classList.add('hidden');
+    }
+
+    if (next === 'MENU') {
+      this.updateMenuBadges();
     }
 
     if (next === 'CRASHED') {

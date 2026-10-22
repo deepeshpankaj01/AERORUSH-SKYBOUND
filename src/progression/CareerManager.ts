@@ -232,10 +232,67 @@ export interface MissionResult {
 export class CareerManager {
   private activeMission: CareerMission | null = null;
 
+  public getLevel(index: number): CareerMission {
+    if (index >= 0 && index < CAREER_MISSIONS.length) {
+      return CAREER_MISSIONS[index];
+    }
+    // Procedural endless levels 7+
+    const envs: Array<'neon_dusk' | 'canyon_express' | 'monsoon_highway' | 'orbital_skyway'> = [
+      'neon_dusk', 'canyon_express', 'monsoon_highway', 'orbital_skyway'
+    ];
+    const env = envs[(index - CAREER_MISSIONS.length) % envs.length];
+    const lvlNum = index + 1;
+    const distance = 2500 + (index - 5) * 500;
+    const targetStunts = Math.min(10, 3 + Math.floor((index - 6) / 2));
+
+    return {
+      id: `procedural_lvl_${lvlNum}`,
+      title: `Level ${lvlNum}: Apex Highway`,
+      subtitle: `Master high-speed aerial stunts and clear ${distance}M on ${env.replace('_', ' ').toUpperCase()}.`,
+      environmentId: env,
+      stageLength: distance,
+      briefing: {
+        character: 'Mira',
+        role: 'Chief Aerodynamics Engineer',
+        avatar: 'mira',
+        message: `Level ${lvlNum} procedural sector unlocked. Reach ${distance}M and log at least ${targetStunts} aerial stunts.`,
+        postReactionSuccess: `Outstanding performance on Level ${lvlNum}! Sector record updated.`,
+        postReactionFail: `Distance or stunt goal missed. Re-align hypercar trajectory and try again.`,
+      },
+      objectives: [
+        { type: 'distance', target: distance, label: `Reach ${distance.toLocaleString()}M` },
+        { type: 'stunts', target: targetStunts, label: `Execute ${targetStunts} Stunts` },
+      ],
+      medalThresholds: {
+        bronzeScore: 15000 + (index - 6) * 5000,
+        silverScore: 24000 + (index - 6) * 6000,
+        goldScore: 35000 + (index - 6) * 8000,
+      },
+      rewards: {
+        bronzeAC: 1500 + (index - 6) * 200,
+        silverAC: 2500 + (index - 6) * 300,
+        goldAC: 4000 + (index - 6) * 500,
+      },
+    };
+  }
+
+  public startLevel(levelIndex: number): CareerMission {
+    this.activeMission = this.getLevel(levelIndex);
+    return this.activeMission;
+  }
+
   public startMission(missionId: string): CareerMission | null {
     const mission = CAREER_MISSIONS.find(m => m.id === missionId);
-    this.activeMission = mission || null;
-    return this.activeMission;
+    if (mission) {
+      this.activeMission = mission;
+      return this.activeMission;
+    }
+    const match = missionId.match(/procedural_lvl_(\d+)/);
+    if (match) {
+      const lvl = parseInt(match[1], 10);
+      return this.startLevel(lvl - 1);
+    }
+    return null;
   }
 
   public getActiveMission(): CareerMission | null {
