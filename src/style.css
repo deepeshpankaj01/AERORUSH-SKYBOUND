@@ -19,10 +19,24 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-touch-callout: none;
+}
+
+/* Prevent accidental text selection on interactive game elements */
+#game-container, #game-hud, #touch-controls, .touch-btn, .btn-play-hero, button {
   user-select: none;
   -webkit-user-select: none;
-  -webkit-touch-callout: none;
+}
+
+/* Game canvas and on-screen driving controls prevent browser gesture collisions */
+#webgl-canvas, #touch-controls, .touch-btn {
   touch-action: none;
+}
+
+/* UI modals, menus, and scrollable panels allow natural touch scrolling and accessibility zoom */
+.modal-body, .settings-body, .garage-panel, .screen, .menu-content {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 html, body {
@@ -1996,6 +2010,39 @@ button {
   font-size: 1.15rem;
   padding: 1rem 2rem;
   box-shadow: 0 0 30px rgba(0, 240, 255, 0.5);
+}
+
+@media (max-height: 480px) {
+  .results-card {
+    padding: 0.8rem 1.2rem;
+    margin: auto;
+  }
+  .results-score-val {
+    font-size: 1.8rem;
+  }
+  .credits-reward-tag {
+    margin: 0.2rem 0 0.4rem;
+    padding: 0.2rem 0.8rem;
+    font-size: 0.75rem;
+  }
+  .results-grid {
+    gap: 0.35rem;
+    margin: 0.3rem 0;
+  }
+  .results-stat {
+    padding: 0.25rem 0.2rem;
+  }
+  .stat-num {
+    font-size: 0.95rem;
+  }
+  .results-actions-simple {
+    margin-top: 0.5rem;
+    gap: 0.4rem;
+  }
+  #btn-results-next {
+    padding: 0.5rem 1rem;
+    font-size: 0.95rem;
+  }
 }
 
 /* Settings Embedded Guide & Privacy */

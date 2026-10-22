@@ -45,11 +45,11 @@ class AeroRushApp {
   private achieveMgr!: AchievementManager;
   private ghostSystem!: GhostSystem;
 
-  // Phase 3 Online, Multiplayer & Monetization Services
-  private onlineLeaderboard!: OnlineLeaderboardService;
-  private adManager!: AdManager;
-  private passAndPlay!: PassAndPlayManager;
-  private mpClient!: MultiplayerClient;
+  // Online, Multiplayer & Monetization Services (Preserved for future use; startup disabled in offline release)
+  private onlineLeaderboard: OnlineLeaderboardService | null = null;
+  private adManager: AdManager | null = null;
+  private passAndPlay: PassAndPlayManager | null = null;
+  private mpClient: MultiplayerClient | null = null;
 
   // Lighting
   private hemiLight!: THREE.HemisphereLight;
@@ -139,18 +139,14 @@ class AeroRushApp {
     this.achieveMgr = new AchievementManager(this.progression);
     this.ghostSystem = new GhostSystem();
 
-    // Phase 3 Subsystems
-    this.onlineLeaderboard = new OnlineLeaderboardService();
-    this.adManager = new AdManager();
-    this.passAndPlay = new PassAndPlayManager();
-    this.mpClient = new MultiplayerClient();
-
     // 5. Entities & World
     this.carModel = new CarModel();
     this.scene.add(this.carModel.root);
 
     this.scene.add(this.ghostSystem.ghostMesh);
-    this.scene.add(this.mpClient.opponentMeshRoot);
+    if (this.mpClient) {
+      this.scene.add(this.mpClient.opponentMeshRoot);
+    }
 
     this.physics = new VehiclePhysics();
     this.trackMgr = new TrackManager();
@@ -255,12 +251,6 @@ class AeroRushApp {
         onCosmeticsChanged: () => {
           this.applyCosmeticsAndUpgrades();
         },
-      },
-      {
-        onlineLeaderboard: this.onlineLeaderboard,
-        adManager: this.adManager,
-        passAndPlay: this.passAndPlay,
-        mpClient: this.mpClient,
       }
     );
 
@@ -432,9 +422,13 @@ class AeroRushApp {
     this.soundMgr.stopCyberMusic();
     this.soundMgr.updateEngine(0, false, false, false);
     this.ghostSystem.hideGhost();
-    this.mpClient.opponentMeshRoot.visible = false;
-    this.mpClient.leaveRoom();
-    this.passAndPlay.reset();
+    if (this.mpClient) {
+      this.mpClient.opponentMeshRoot.visible = false;
+      this.mpClient.leaveRoom();
+    }
+    if (this.passAndPlay) {
+      this.passAndPlay.reset();
+    }
     this.stateMgr.setState('MENU');
     this.scene.add(this.carModel.root);
     this.carModel.root.position.set(0, 0, 0);
@@ -682,8 +676,8 @@ class AeroRushApp {
         this.physics.isDrifting
       );
 
-      // Real-time Multiplayer sync
-      if (this.mpClient.getStatus() === 'RACING') {
+      // Real-time Multiplayer sync (if active)
+      if (this.mpClient && this.mpClient.getStatus() === 'RACING') {
         this.mpClient.sendTelemetry(
           this.physics.position,
           this.physics.rotation,
@@ -696,8 +690,8 @@ class AeroRushApp {
 
       // Ghost or Rival delta distance
       let deltaDistance: number | undefined;
-      const mpRivalZ = this.mpClient.getOpponentDistance();
-      if (mpRivalZ !== null && this.mpClient.getStatus() === 'RACING') {
+      const mpRivalZ = this.mpClient && this.mpClient.getStatus() === 'RACING' ? this.mpClient.getOpponentDistance() : null;
+      if (mpRivalZ !== null) {
         deltaDistance = this.physics.position.z - mpRivalZ;
       } else if (this.ghostSystem.ghostMesh.visible) {
         deltaDistance = this.physics.position.z - this.ghostSystem.ghostMesh.position.z;
@@ -742,16 +736,16 @@ class AeroRushApp {
     const summary = this.scoreMgr.finalizeSummary();
 
     // Broadcast finish in multiplayer if active
-    if (this.mpClient.getStatus() === 'RACING') {
+    if (this.mpClient && this.mpClient.getStatus() === 'RACING') {
       this.mpClient.sendFinish(summary.finalScore, summary.distanceMeters, this.raceElapsedTime);
     }
 
-    // Pass and Play duel evaluation
-    if (this.passAndPlay.getPhase() === 'PLAYER1_RACING') {
+    // Pass and Play duel evaluation (if active)
+    if (this.passAndPlay && this.passAndPlay.getPhase() === 'PLAYER1_RACING') {
       this.passAndPlay.completePlayer1Turn(summary, ghostRec || undefined);
       this.uiMgr.showDuelHandoff(summary);
       return;
-    } else if (this.passAndPlay.getPhase() === 'PLAYER2_RACING') {
+    } else if (this.passAndPlay && this.passAndPlay.getPhase() === 'PLAYER2_RACING') {
       this.passAndPlay.completePlayer2Turn(summary, ghostRec || undefined);
       this.uiMgr.showDuelResults();
       return;
@@ -803,6 +797,16 @@ class AeroRushApp {
 
   public completeRunForTesting(): void {
     this.completeRun();
+  }
+
+  public getInputStateForTesting(): any {
+    return this.inputMgr.getState();
+  }
+
+  public skipCountdownForTesting(): void {
+    this.countdownStep = -1;
+    this.uiMgr.hideCountdown();
+    this.stateMgr.setState('PLAYING');
   }
 
   public dispose(): void {

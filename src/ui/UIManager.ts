@@ -58,11 +58,11 @@ export class UIManager {
   private handlers: Phase3UIEventHandlers;
   private settingsReturnState: GameStateType = 'MENU';
 
-  // Phase 3 Subsystem Services
-  public onlineLeaderboard: OnlineLeaderboardService;
-  public adManager: AdManager;
-  public passAndPlay: PassAndPlayManager;
-  public mpClient: MultiplayerClient;
+  // Online/Multiplayer Subsystem Services (Preserved for future use; disabled in offline release)
+  public onlineLeaderboard: OnlineLeaderboardService | null = null;
+  public adManager: AdManager | null = null;
+  public passAndPlay: PassAndPlayManager | null = null;
+  public mpClient: MultiplayerClient | null = null;
 
   // Active Selections & State
   private activeGarageTab: 'upgrades' | 'paints' | 'wheels' | 'underglow' | 'thrusters' = 'upgrades';
@@ -78,7 +78,7 @@ export class UIManager {
   private activeEnvFilter: string = 'all';
 
   private lastSummary: ScoreSummary | null = null;
-  private dailyChallengeInfo: DailyChallengeInfo;
+  private dailyChallengeInfo: DailyChallengeInfo | null = null;
   private pendingFriendChallenge: FriendChallengeData | null = null;
 
   // Global & HUD Nodes
@@ -144,12 +144,11 @@ export class UIManager {
     this.achieveMgr = achieveMgr;
     this.handlers = handlers;
 
-    this.onlineLeaderboard = services?.onlineLeaderboard || new OnlineLeaderboardService();
-    this.adManager = services?.adManager || new AdManager();
-    this.passAndPlay = services?.passAndPlay || new PassAndPlayManager();
-    this.mpClient = services?.mpClient || new MultiplayerClient();
-
-    this.dailyChallengeInfo = DailyChallengeService.getDailyChallenge();
+    // In offline release, do not instantiate external network services
+    this.onlineLeaderboard = services?.onlineLeaderboard || null;
+    this.adManager = services?.adManager || null;
+    this.passAndPlay = services?.passAndPlay || null;
+    this.mpClient = services?.mpClient || null;
 
     // Cache DOM Nodes
     this.globalCreditsVal = document.getElementById('global-credits-val');
@@ -226,22 +225,19 @@ export class UIManager {
   }
 
   private setupNetworkMonitor(): void {
-    const updateOnlineStatus = () => {
-      const isOnline = navigator.onLine;
+    const updateStorageStatus = () => {
       if (this.networkStatusText && this.networkDot) {
-        if (isOnline) {
-          this.networkStatusText.textContent = 'ONLINE';
-          this.networkDot.className = 'status-dot online';
-        } else {
-          this.networkStatusText.textContent = 'OFFLINE (PWA)';
-          this.networkDot.className = 'status-dot offline';
-        }
+        const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : false;
+        this.networkDot.className = 'status-dot online';
+        this.networkStatusText.textContent = isOnline
+          ? 'OFFLINE READY • LOCAL SAVE'
+          : 'OFFLINE MODE • LOCAL SAVE';
       }
     };
 
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-    updateOnlineStatus();
+    window.addEventListener('online', updateStorageStatus);
+    window.addEventListener('offline', updateStorageStatus);
+    updateStorageStatus();
   }
 
   private updateCreditsDisplay(): void {
@@ -253,66 +249,8 @@ export class UIManager {
   private bindDomEvents(): void {
     // Main Menu Nav Buttons
     document.getElementById('btn-main-play')?.addEventListener('click', () => this.launchCurrentLevel());
-    document.getElementById('btn-nav-career')?.addEventListener('click', () => this.openCareer());
-    document.getElementById('btn-nav-quick')?.addEventListener('click', () => this.openQuickRun());
-    document.getElementById('btn-nav-stunts')?.addEventListener('click', () => this.stateMgr.setState('STUNT_SCHOOL'));
     document.getElementById('btn-nav-garage')?.addEventListener('click', () => this.handlers.onOpenGarage());
-    document.getElementById('btn-nav-leaderboard')?.addEventListener('click', () => this.openLeaderboard());
-    document.getElementById('btn-nav-achievements')?.addEventListener('click', () => this.openAchievements());
-    document.getElementById('btn-nav-how')?.addEventListener('click', () => this.stateMgr.setState('HOW_TO_PLAY'));
     document.getElementById('btn-nav-settings')?.addEventListener('click', () => this.openSettings());
-    document.getElementById('btn-nav-credits')?.addEventListener('click', () => this.stateMgr.setState('CREDITS'));
-    document.getElementById('btn-nav-privacy')?.addEventListener('click', () => this.stateMgr.setState('PRIVACY'));
-
-    // Mode Select Modal Actions
-    document.getElementById('btn-play-select-back')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('card-mode-career')?.addEventListener('click', () => this.openCareer());
-    document.getElementById('card-mode-quick')?.addEventListener('click', () => this.openQuickRun());
-    document.getElementById('card-mode-stunts')?.addEventListener('click', () => this.stateMgr.setState('STUNT_SCHOOL'));
-    document.getElementById('card-mode-multiplayer')?.addEventListener('click', () => this.openMultiplayerLobby());
-    document.getElementById('card-mode-2p')?.addEventListener('click', () => this.openPassAndPlaySetup());
-    document.getElementById('card-mode-daily')?.addEventListener('click', () => this.openDailyChallenge());
-    document.getElementById('card-mode-friend')?.addEventListener('click', () => this.stateMgr.setState('FRIEND_CHALLENGE'));
-
-    // Quick Run Modal Actions
-    document.getElementById('btn-quick-back')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
-    document.getElementById('btn-quick-launch')?.addEventListener('click', () => {
-      this.handlers.onStartRace({
-        environmentId: this.selectedQuickEnvId,
-        stageLength: this.selectedQuickDist,
-        isGhost: this.selectedQuickGhost,
-      });
-    });
-
-    const distBtns = document.querySelectorAll('#group-distance .group-btn');
-    distBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        distBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.selectedQuickDist = parseInt(btn.getAttribute('data-dist') || '3000', 10);
-      });
-    });
-
-    const ghostCheck = document.getElementById('check-ghost') as HTMLInputElement | null;
-    ghostCheck?.addEventListener('change', (e) => {
-      this.selectedQuickGhost = (e.target as HTMLInputElement).checked;
-    });
-
-    // Career Modal
-    document.getElementById('btn-career-back')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
-
-    // Stunt School Modal Actions
-    document.getElementById('btn-stunts-back')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
-    const stuntCards = document.querySelectorAll('.stunt-module-card');
-    stuntCards.forEach(card => {
-      card.addEventListener('click', () => {
-        const mod = card.getAttribute('data-module') || 'roll';
-        this.handlers.onStartRace({
-          environmentId: mod === 'drift' ? 'monsoon_highway' : 'canyon_express',
-          stageLength: 2500,
-        });
-      });
-    });
 
     // Garage Screen
     document.getElementById('btn-garage-back')?.addEventListener('click', () => this.handlers.onCloseGarage());
@@ -345,17 +283,9 @@ export class UIManager {
       }
     });
 
-    // How to Play Modal
-    document.getElementById('btn-how-back')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('btn-how-play')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
-
     // Settings Modal
     document.getElementById('btn-settings-back')?.addEventListener('click', () => this.stateMgr.setState(this.settingsReturnState));
     document.getElementById('btn-settings-save')?.addEventListener('click', () => this.stateMgr.setState(this.settingsReturnState));
-
-    // Achievements Modal
-    document.getElementById('btn-achievements-back')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('btn-achievements-close')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
 
     const qualityBtns = document.querySelectorAll('#group-quality .group-btn');
     qualityBtns.forEach(btn => {
@@ -412,12 +342,6 @@ export class UIManager {
       }
     });
 
-    // Credits & Privacy
-    document.getElementById('btn-credits-back')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('btn-credits-close')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('btn-privacy-back')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('btn-privacy-close')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-
     // HUD Pause
     document.getElementById('btn-pause')?.addEventListener('click', () => this.handlers.onPause());
 
@@ -427,49 +351,7 @@ export class UIManager {
     document.getElementById('btn-pause-settings')?.addEventListener('click', () => this.openSettings('PAUSED'));
     document.getElementById('btn-pause-quit')?.addEventListener('click', () => this.handlers.onAbortToMenu());
 
-    // ================= PHASE 3 BINDINGS =================
-
-    // 1. Leaderboard bindings
-    document.getElementById('btn-records-back')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('btn-records-close')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('btn-records-clear')?.addEventListener('click', () => {
-      if (confirm('Clear local offline records?')) {
-        this.scoreMgr.clearRecords();
-        this.fetchAndRenderLeaderboard();
-      }
-    });
-    document.getElementById('btn-records-refresh')?.addEventListener('click', () => this.fetchAndRenderLeaderboard());
-
-    document.getElementById('btn-save-callsign')?.addEventListener('click', () => {
-      const input = document.getElementById('input-records-callsign') as HTMLInputElement | null;
-      if (input) {
-        const saved = this.onlineLeaderboard.setPlayerName(input.value);
-        input.value = saved;
-        alert(`Pilot Callsign set to: ${saved}`);
-      }
-    });
-
-    const boardTabs = document.querySelectorAll('[data-board-tab]');
-    boardTabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        boardTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        this.activeLeaderboardTab = (tab.getAttribute('data-board-tab') || 'global') as any;
-        this.fetchAndRenderLeaderboard();
-      });
-    });
-
-    const envFilters = document.querySelectorAll('[data-env-filter]');
-    envFilters.forEach(pill => {
-      pill.addEventListener('click', () => {
-        envFilters.forEach(p => p.classList.remove('active'));
-        pill.classList.add('active');
-        this.activeEnvFilter = pill.getAttribute('data-env-filter') || 'all';
-        this.fetchAndRenderLeaderboard();
-      });
-    });
-
-    // 2. Results Screen Actions
+    // Results Screen Actions
     document.getElementById('btn-results-next')?.addEventListener('click', () => {
       this.launchCurrentLevel();
     });
@@ -482,107 +364,16 @@ export class UIManager {
       this.updateMenuBadges();
       this.handlers.onAbortToMenu();
     });
-
-    document.getElementById('btn-results-submit')?.addEventListener('click', () => this.submitResultsToLeaderboard());
-    document.getElementById('btn-results-card')?.addEventListener('click', () => this.downloadScoreCard());
-    document.getElementById('btn-results-share')?.addEventListener('click', () => this.shareResults());
-    document.getElementById('btn-results-ad')?.addEventListener('click', () => this.watchRewardedAd());
-
-    // 3. Multiplayer Lobby Actions
-    document.getElementById('btn-mp-back')?.addEventListener('click', () => {
-      this.mpClient.disconnect();
-      this.stateMgr.setState('PLAY_SELECT');
-    });
-
-    document.getElementById('tab-mp-host')?.addEventListener('click', () => {
-      document.getElementById('tab-mp-host')?.classList.add('active');
-      document.getElementById('tab-mp-join')?.classList.remove('active');
-      document.getElementById('panel-mp-host')?.classList.remove('hidden');
-      document.getElementById('panel-mp-join')?.classList.add('hidden');
-    });
-
-    document.getElementById('tab-mp-join')?.addEventListener('click', () => {
-      document.getElementById('tab-mp-join')?.classList.add('active');
-      document.getElementById('tab-mp-host')?.classList.remove('active');
-      document.getElementById('panel-mp-join')?.classList.remove('hidden');
-      document.getElementById('panel-mp-host')?.classList.add('hidden');
-    });
-
-    document.getElementById('btn-mp-create-room')?.addEventListener('click', () => {
-      if (!this.mpClient.isConfigured()) {
-        alert(this.mpClient.getConfigReason() || 'Multiplayer server is not configured for this deployment.');
-        return;
-      }
-      const pilotName = this.onlineLeaderboard.getPlayerName();
-      this.mpClient.createRoom({
-        playerName: pilotName,
-        environmentId: this.selectedMpEnvId,
-        seed: 100000 + Math.floor(Math.random() * 899999),
-        stageLength: this.selectedMpDist,
-        carPaint: this.progression.getData().cosmetics.paint,
-      });
-    });
-
-    document.getElementById('btn-mp-join-room')?.addEventListener('click', () => {
-      if (!this.mpClient.isConfigured()) {
-        alert(this.mpClient.getConfigReason() || 'Multiplayer server is not configured for this deployment.');
-        return;
-      }
-      const codeInput = document.getElementById('input-mp-room-code') as HTMLInputElement | null;
-      const code = codeInput ? codeInput.value.trim().toUpperCase() : '';
-      if (!code) {
-        alert('Please enter a 6-character room code.');
-        return;
-      }
-      const pilotName = this.onlineLeaderboard.getPlayerName();
-      this.mpClient.joinRoom(code, pilotName, this.progression.getData().cosmetics.paint);
-    });
-
-    document.getElementById('btn-mp-copy-code')?.addEventListener('click', () => {
-      const room = this.mpClient.getCurrentRoom();
-      if (room && typeof navigator !== 'undefined' && navigator.clipboard) {
-        navigator.clipboard.writeText(room.code);
-        alert(`Room Code ${room.code} copied to clipboard! Share it with your rival pilot.`);
-      }
-    });
-
-    document.getElementById('btn-mp-ready')?.addEventListener('click', () => {
-      this.isMyMpReady = !this.isMyMpReady;
-      this.mpClient.toggleReady(this.isMyMpReady);
-      const btn = document.getElementById('btn-mp-ready');
-      if (btn) btn.textContent = this.isMyMpReady ? 'WAITING FOR RIVAL...' : 'TOGGLE READY';
-    });
-
-    document.getElementById('btn-mp-leave')?.addEventListener('click', () => {
-      this.mpClient.leaveRoom();
-      document.getElementById('mp-view-lobby')?.classList.add('hidden');
-      document.getElementById('mp-view-tabs')?.classList.remove('hidden');
-    });
-
-    // 4. Pass & Play Duels
-    document.getElementById('btn-duel-setup-back')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
-    document.getElementById('btn-duel-start-p1')?.addEventListener('click', () => this.startDuelPlayer1());
-    document.getElementById('btn-duel-start-p2')?.addEventListener('click', () => this.startDuelPlayer2());
-    document.getElementById('btn-duel-rematch')?.addEventListener('click', () => {
-      this.passAndPlay.reset();
-      this.openPassAndPlaySetup();
-    });
-    document.getElementById('btn-duel-menu')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-
-    // 5. Daily Challenge
-    document.getElementById('btn-daily-back')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
-    document.getElementById('btn-daily-launch')?.addEventListener('click', () => this.launchDailyChallenge());
-
-    // 6. Friend Challenge
-    document.getElementById('btn-friend-back')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
-    document.getElementById('btn-friend-parse')?.addEventListener('click', () => this.parseFriendChallengeCode());
-    document.getElementById('btn-friend-launch')?.addEventListener('click', () => this.launchFriendChallenge());
   }
 
   // ================= MULTIPLAYER SYSTEM =================
 
   private openMultiplayerLobby(): void {
     const statusEl = document.getElementById('mp-connection-status');
+    if (!this.mpClient) {
+      if (statusEl) statusEl.textContent = 'STATUS: OFFLINE MODE (RELAY DISABLED)';
+      return;
+    }
     if (statusEl) statusEl.textContent = 'STATUS: CONNECTING TO RELAY...';
 
     // Populate multiplayer environment selector
@@ -636,6 +427,7 @@ export class UIManager {
   }
 
   private setupMultiplayerListeners(): void {
+    if (!this.mpClient) return;
     this.mpClient.onRoomUpdated = (room: MultiplayerRoomInfo) => {
       document.getElementById('mp-view-tabs')?.classList.add('hidden');
       document.getElementById('mp-view-lobby')?.classList.remove('hidden');
@@ -678,7 +470,7 @@ export class UIManager {
     };
 
     this.mpClient.onRaceStart = () => {
-      const room = this.mpClient.getCurrentRoom();
+      const room = this.mpClient?.getCurrentRoom();
       if (!room) return;
 
       this.handlers.onStartRace({
@@ -701,6 +493,7 @@ export class UIManager {
   // ================= PASS & PLAY LOCAL COMPETITION =================
 
   private openPassAndPlaySetup(): void {
+    if (!this.passAndPlay) return;
     const grid = document.getElementById('duel-env-selector-grid');
     if (grid) {
       grid.innerHTML = '';
@@ -721,6 +514,7 @@ export class UIManager {
   }
 
   private startDuelPlayer1(): void {
+    if (!this.passAndPlay) return;
     const p1Input = document.getElementById('input-duel-p1') as HTMLInputElement | null;
     const p2Input = document.getElementById('input-duel-p2') as HTMLInputElement | null;
     const p1 = p1Input ? p1Input.value.trim() : 'PILOT 1';
@@ -738,6 +532,7 @@ export class UIManager {
   }
 
   public showDuelHandoff(p1Summary: ScoreSummary): void {
+    if (!this.passAndPlay) return;
     const p1Bench = document.getElementById('lbl-duel-p1-benchmark');
     if (p1Bench) p1Bench.textContent = `${p1Summary.finalScore.toLocaleString()} PTS`;
 
@@ -748,6 +543,7 @@ export class UIManager {
   }
 
   private startDuelPlayer2(): void {
+    if (!this.passAndPlay) return;
     this.passAndPlay.startPlayer2Turn();
 
     const p1Result = this.passAndPlay.getPlayer1Result();
@@ -762,6 +558,7 @@ export class UIManager {
   }
 
   public showDuelResults(): void {
+    if (!this.passAndPlay) return;
     const res1 = this.passAndPlay.getPlayer1Result();
     const res2 = this.passAndPlay.getPlayer2Result();
     if (!res1 || !res2) return;
@@ -851,6 +648,7 @@ export class UIManager {
 
   private launchDailyChallenge(): void {
     const daily = this.dailyChallengeInfo;
+    if (!daily) return;
     this.handlers.onStartRace({
       environmentId: daily.environmentId,
       stageLength: daily.targetDistance,
@@ -916,7 +714,7 @@ export class UIManager {
   private openLeaderboard(): void {
     const callsignInput = document.getElementById('input-records-callsign') as HTMLInputElement | null;
     if (callsignInput) {
-      callsignInput.value = this.onlineLeaderboard.getPlayerName();
+      callsignInput.value = this.onlineLeaderboard ? this.onlineLeaderboard.getPlayerName() : 'PILOT';
     }
     this.fetchAndRenderLeaderboard();
     this.stateMgr.setState('LEADERBOARD');
@@ -926,12 +724,17 @@ export class UIManager {
     const list = document.getElementById('records-list');
     if (!list) return;
 
+    if (!this.onlineLeaderboard) {
+      list.innerHTML = '<div class="text-center p-1rem text-muted">Offline Mode Active. Cloud leaderboards disabled.</div>';
+      return;
+    }
+
     list.innerHTML = '<div class="loader-label text-center p-1rem">CONNECTING TO GLOBAL TELEMETRY...</div>';
 
     const res = await this.onlineLeaderboard.fetchLeaderboard({
       challengeType: this.activeLeaderboardTab === 'daily' ? 'daily' : 'all_time',
       environmentId: this.activeEnvFilter === 'all' ? undefined : this.activeEnvFilter,
-      challengeDate: this.activeLeaderboardTab === 'daily' ? this.dailyChallengeInfo.dateStr : undefined,
+      challengeDate: this.activeLeaderboardTab === 'daily' ? this.dailyChallengeInfo?.dateStr : undefined,
       limit: 25,
     });
 
@@ -952,7 +755,7 @@ export class UIManager {
     res.entries.forEach((e: LeaderboardEntry) => {
       const row = document.createElement('div');
       row.className = 'record-row';
-      const isMe = e.playerId === this.onlineLeaderboard.getOrCreatePlayerId();
+      const isMe = this.onlineLeaderboard ? e.playerId === this.onlineLeaderboard.getOrCreatePlayerId() : false;
       if (isMe) row.classList.add('personal-record-row');
 
       row.innerHTML = `
@@ -1008,7 +811,7 @@ export class UIManager {
 
   public populateResults(summary: ScoreSummary, creditsEarned: number, missionResult?: any): void {
     this.lastSummary = summary;
-    this.adManager.onRunCompleted();
+    this.adManager?.onRunCompleted();
 
     const currentLevelIdx = this.progression.getData().careerProgress;
     const playedLevelIdx = missionResult?.passed ? Math.max(0, currentLevelIdx - 1) : currentLevelIdx;
@@ -1097,7 +900,7 @@ export class UIManager {
   }
 
   private async submitResultsToLeaderboard(): Promise<void> {
-    if (!this.lastSummary) return;
+    if (!this.lastSummary || !this.onlineLeaderboard) return;
     const submitBtn = document.getElementById('btn-results-submit');
     if (submitBtn) {
       submitBtn.setAttribute('disabled', 'true');
@@ -1125,8 +928,9 @@ export class UIManager {
 
   private downloadScoreCard(): void {
     if (!this.lastSummary) return;
+    const pilotName = this.onlineLeaderboard ? this.onlineLeaderboard.getPlayerName() : 'PILOT';
     const meta = {
-      pilotName: this.onlineLeaderboard.getPlayerName(),
+      pilotName,
       environmentName: this.selectedQuickEnvId.replace('_', ' ').toUpperCase(),
       environmentId: this.selectedQuickEnvId,
       seed: Math.floor(100000 + Math.random() * 899999),
@@ -1136,8 +940,9 @@ export class UIManager {
 
   private shareResults(): void {
     if (!this.lastSummary) return;
+    const pilotName = this.onlineLeaderboard ? this.onlineLeaderboard.getPlayerName() : 'PILOT';
     const meta = {
-      pilotName: this.onlineLeaderboard.getPlayerName(),
+      pilotName,
       environmentName: this.selectedQuickEnvId.replace('_', ' ').toUpperCase(),
       environmentId: this.selectedQuickEnvId,
       seed: Math.floor(100000 + Math.random() * 899999),
@@ -1159,6 +964,7 @@ export class UIManager {
   }
 
   private watchRewardedAd(): void {
+    if (!this.adManager) return;
     const adBtn = document.getElementById('btn-results-ad');
     if (adBtn) adBtn.setAttribute('disabled', 'true');
 
