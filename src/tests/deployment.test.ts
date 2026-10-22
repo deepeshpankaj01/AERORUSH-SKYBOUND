@@ -56,32 +56,35 @@ describe('Cloudflare Pages Deployment Configuration', () => {
     expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']https?:\/\//i);
   });
 
-  it('verifies sw.js correctly defines cache-first offline strategy and navigation fallback', () => {
+  it('verifies sw.js correctly defines offline caching strategy, version v3.3, and navigation fallback', () => {
     const filePath = path.join(rootDir, 'public', 'sw.js');
     expect(fs.existsSync(filePath)).toBe(true);
 
     const swCode = fs.readFileSync(filePath, 'utf-8');
     expect(swCode).toContain('CACHE_NAME');
-    expect(swCode).toContain('aerorush-skybound-v3.2');
+    expect(swCode).toContain('aerorush-skybound-v3.3');
     expect(swCode).toContain('PRECACHE_ASSETS');
     expect(swCode).toContain('caches.match');
     expect(swCode).toContain('navigate');
   });
 
-  it('verifies dialog overlay has interactive pointer-events and backdrop in CSS and HTML', () => {
+  it('verifies legacy dialogue modal and continue/skip buttons are completely removed from index.html', () => {
     const htmlPath = path.join(rootDir, 'index.html');
-    const cssPath = path.join(rootDir, 'src', 'style.css');
-
     const html = fs.readFileSync(htmlPath, 'utf-8');
-    expect(html).toContain('id="dialog-overlay"');
-    expect(html).toContain('id="btn-dialog-continue"');
-    expect(html).toContain('id="btn-dialog-skip"');
-    expect(html).toContain('dialog-modal-backdrop');
 
-    const css = fs.readFileSync(cssPath, 'utf-8');
-    expect(css).toContain('.dialog-modal-backdrop');
-    expect(css).toMatch(/\.dialog-card\s*\{[^}]*pointer-events:\s*auto/);
-    expect(css).toMatch(/\.dialog-actions\s+button\s*\{[^}]*pointer-events:\s*auto/);
+    // Dialogue overlay and buttons must be completely absent
+    expect(html).not.toContain('id="dialog-overlay"');
+    expect(html).not.toContain('id="btn-dialog-continue"');
+    expect(html).not.toContain('id="btn-dialog-skip"');
+    expect(html).not.toContain('dialog-modal-backdrop');
+
+    // Direct Play button and honest offline status must exist
+    expect(html).toContain('id="btn-main-play"');
+    expect(html).toContain('OFFLINE READY • LOCAL SAVE');
+    expect(html).toContain('viewport-fit=cover');
+    // Ensure viewport allows accessibility zooming
+    expect(html).not.toContain('user-scalable=no');
+    expect(html).not.toContain('maximum-scale=1.0');
   });
 
   it('verifies dist output has all deployment files after production build', () => {

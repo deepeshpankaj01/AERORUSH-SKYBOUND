@@ -98,16 +98,16 @@ async function run() {
   await new Promise(r => setTimeout(r, 1200));
 
   // Helper to get active screen ID
-  const getActiveScreen = async () => {
-    return await page.evaluate(() => {
+  const getActiveScreen = async (p = page) => {
+    return await p.evaluate(() => {
       const active = document.querySelector('.screen.active');
       return active ? active.id : null;
     });
   };
 
   // Helper to dispatch touch pointer events
-  const dispatchPointer = async (elementId, eventType) => {
-    return await page.evaluate((id, type) => {
+  const dispatchPointer = async (p, elementId, eventType) => {
+    return await p.evaluate((id, type) => {
       const el = document.getElementById(id);
       if (!el) throw new Error(`Element #${id} not found`);
       const rect = el.getBoundingClientRect();
@@ -125,8 +125,8 @@ async function run() {
   };
 
   // Helper to reliably tap buttons in responsive/scrolling mobile views
-  const tapButton = async (selector) => {
-    return await page.evaluate((sel) => {
+  const tapButton = async (p, selector) => {
+    return await p.evaluate((sel) => {
       const el = document.querySelector(sel);
       if (!el) throw new Error(`Element ${sel} not found`);
       el.scrollIntoView({ block: 'center', inline: 'center' });
@@ -165,34 +165,93 @@ async function run() {
   await page.click('#btn-nav-garage');
   await new Promise(r => setTimeout(r, 500));
   if (await getActiveScreen() !== 'screen-garage') throw new Error('Failed to open screen-garage');
-  await page.click('.garage-tab[data-tab="paints"]');
-  await new Promise(r => setTimeout(r, 300));
+  await tapButton(page, '.garage-tab[data-tab="paints"]');
+  await new Promise(r => setTimeout(r, 400));
   const paintsCount = await page.evaluate(() => document.querySelectorAll('#garage-tab-content .shop-item-card').length);
   if (paintsCount === 0) throw new Error('No paint cards rendered in garage');
-  await page.click('#garage-tab-content .shop-item-card');
-  await page.click('#btn-garage-back');
+  await tapButton(page, '#garage-tab-content .shop-item-card');
+  await tapButton(page, '#btn-garage-back');
   await new Promise(r => setTimeout(r, 500));
   if (await getActiveScreen() !== 'screen-menu') throw new Error('Failed to return to screen-menu from GARAGE');
   console.log(`✓ Garage cosmetic selection and return verified (${paintsCount} paints).`);
+
+  // Regression test: Verify legacy dialogue elements are completely absent from DOM
+  const dialogueElements = await page.evaluate(() => ({
+    dialog: document.getElementById('dialog-overlay'),
+    btnContinue: document.getElementById('btn-dialog-continue'),
+    btnSkip: document.getElementById('btn-dialog-skip'),
+  }));
+  if (dialogueElements.dialog || dialogueElements.btnContinue || dialogueElements.btnSkip) {
+    throw new Error('Regression: Legacy dialogue elements still present in DOM!');
+  }
+  console.log('✓ Verified: Legacy dialogue modal & Continue/Skip buttons completely absent from DOM.');
+
+  // Verify Service Worker Cache Version & Cleanup of Obsolete Caches
+  console.log('Testing Service Worker cache version and obsolete cache cleanup...');
+  const cacheTestResult = await page.evaluate(async () => {
+    if (!('caches' in window)) return { supported: false };
+
+    // Unregister existing service worker registrations to test fresh upgrade lifecycle
+    const existingRegs = await navigator.serviceWorker.getRegistrations();
+    for (const r of existingRegs) {
+      await r.unregister();
+    }
+
+    // Simulate an existing installation that has obsolete v3.2 cache
+    const oldCache = await caches.open('aerorush-skybound-v3.2');
+    await oldCache.put(new Request('/legacy-test-asset'), new Response('legacy-data'));
+
+    // Verify old cache exists before SW activation
+    const beforeKeys = await caches.keys();
+    const hasOldBefore = beforeKeys.includes('aerorush-skybound-v3.2');
+
+    // Register v3.3 service worker
+    const newReg = await navigator.serviceWorker.register('./sw.js');
+    if (newReg.installing || newReg.waiting) {
+      const activeWorker = newReg.installing || newReg.waiting;
+      activeWorker.postMessage({ type: 'SKIP_WAITING' });
+    }
+
+    // Poll until activate event deletes obsolete cache
+    for (let wait = 0; wait < 20; wait++) {
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAN_OBSOLETE_CACHES' });
+      }
+      const keys = await caches.keys();
+      if (keys.includes('aerorush-skybound-v3.3') && !keys.includes('aerorush-skybound-v3.2')) {
+        break;
+      }
+      await new Promise(r => setTimeout(r, 250));
+    }
+
+    const afterKeys = await caches.keys();
+    return {
+      supported: true,
+      hasOldBefore,
+      afterKeys,
+      newCachePresent: afterKeys.includes('aerorush-skybound-v3.3'),
+      oldCacheCleanedUp: !afterKeys.includes('aerorush-skybound-v3.2')
+    };
+  });
+  console.log('SW Cache Cleanup Verification:', cacheTestResult);
+  if (cacheTestResult.supported) {
+    if (!cacheTestResult.newCachePresent) throw new Error('New SW cache aerorush-skybound-v3.3 not found!');
+    if (!cacheTestResult.oldCacheCleanedUp) throw new Error('Obsolete cache aerorush-skybound-v3.2 was not cleaned up safely!');
+    console.log('✓ Verified: Service worker updated to v3.3 and obsolete v3.2 cache safely deleted.');
+  }
 
   // Direct Play Flow
   console.log('Testing DIRECT PLAY FLOW (#btn-main-play)...');
   await page.click('#btn-main-play');
   await new Promise(r => setTimeout(r, 200));
 
-  const isDialogVisible = await page.evaluate(() => {
-    const dialog = document.getElementById('dialog-overlay');
-    return dialog && !dialog.classList.contains('hidden') && dialog.style.display !== 'none';
-  });
-  if (isDialogVisible) throw new Error('Legacy briefing dialog erroneously visible during direct play!');
-  console.log('✓ Verified: No dialogue briefing overlay blocking race start.');
-
-  // Verify countdown
+  // Verify countdown starts directly
   const countdownActive = await page.evaluate(() => {
     const cd = document.getElementById('hud-countdown');
     return cd && !cd.classList.contains('hidden');
   });
-  if (!countdownActive) throw new Error('Countdown overlay did not trigger after clicking PLAY!');
+  if (!countdownActive) throw new Error('Countdown overlay did not trigger directly after clicking PLAY!');
+  console.log('✓ Direct Play verified: Countdown sequence initiated directly without briefing.');
   console.log('✓ Countdown overlay active: 3-2-1 sequence initiated.');
 
   // Wait for countdown to enter PLAYING
@@ -285,6 +344,31 @@ async function run() {
   // Testing: steering, braking, boost, stunt controls, pause/resume, results, retry, progression
   // =========================================================================
   console.log('--- 2. REAL MOBILE BROWSER TEST MATRIX (8 CONFIGURATIONS) ---');
+  await page.close();
+
+  const mobilePage = await browser.newPage();
+  mobilePage.on('pageerror', err => {
+    console.error('[MOBILE BROWSER ERROR]', err);
+    errors.push(err.message);
+  });
+  mobilePage.on('console', msg => {
+    if (msg.type() === 'error') {
+      const text = msg.text();
+      if (!text.includes('favicon') && !text.includes('manifest')) {
+        errors.push(text);
+      }
+    }
+  });
+
+  // Dedicated mobile page starts with touch & mobile emulation active
+  await mobilePage.setViewport({
+    width: 320,
+    height: 568,
+    isMobile: true,
+    hasTouch: true
+  });
+  await mobilePage.goto('http://localhost:4180', { waitUntil: 'networkidle2' });
+  await new Promise(r => setTimeout(r, 1000));
 
   const mobileConfigs = [
     { width: 320, height: 568, orientation: 'portrait',  device: 'Small Mobile (iPhone SE)' },
@@ -302,7 +386,7 @@ async function run() {
     console.log(`\n▶ [Config ${idx + 1}/8] ${cfg.device} - ${cfg.width}x${cfg.height} (${cfg.orientation})`);
 
     // Set mobile viewport with touch support enabled
-    await page.setViewport({
+    await mobilePage.setViewport({
       width: cfg.width,
       height: cfg.height,
       isMobile: true,
@@ -311,7 +395,7 @@ async function run() {
     await new Promise(r => setTimeout(r, 300));
 
     // Check responsiveness: No horizontal document blowout
-    const isHorizontalOverflow = await page.evaluate(() => {
+    const isHorizontalOverflow = await mobilePage.evaluate(() => {
       return document.documentElement.scrollWidth > window.innerWidth + 2;
     });
     if (isHorizontalOverflow) {
@@ -320,28 +404,28 @@ async function run() {
     console.log(`  ✓ Responsive layout verified (no horizontal overflow).`);
 
     // Launch race from menu or current screen
-    const screenBeforePlay = await getActiveScreen();
+    const screenBeforePlay = await getActiveScreen(mobilePage);
     if (screenBeforePlay === 'screen-menu') {
-      await tapButton('#btn-main-play');
+      await tapButton(mobilePage, '#btn-main-play');
     } else if (screenBeforePlay === 'screen-results') {
-      await tapButton('#btn-results-next');
+      await tapButton(mobilePage, '#btn-results-next');
     }
     await new Promise(r => setTimeout(r, 200));
 
     // Fast-forward countdown into PLAYING for touch control validation
-    await page.evaluate(() => {
+    await mobilePage.evaluate(() => {
       if (window.__aeroRushApp) window.__aeroRushApp.skipCountdownForTesting();
     });
     await new Promise(r => setTimeout(r, 300));
 
-    const isPlaying = await page.evaluate(() => {
+    const isPlaying = await mobilePage.evaluate(() => {
       const hud = document.getElementById('game-hud');
       return hud && !hud.classList.contains('hidden');
     });
     if (!isPlaying) throw new Error(`Race did not enter PLAYING state at ${cfg.width}x${cfg.height}`);
 
     // Verify Mobile Touch Controls Overlay is visible
-    const touchControlsVisible = await page.evaluate(() => {
+    const touchControlsVisible = await mobilePage.evaluate(() => {
       const tc = document.getElementById('touch-controls');
       if (!tc) return false;
       const style = window.getComputedStyle(tc);
@@ -353,99 +437,99 @@ async function run() {
     console.log(`  ✓ Mobile touch layer active.`);
 
     // --- A. Test Touch Steering Left ---
-    await dispatchPointer('touch-steer-left', 'pointerdown');
-    let inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-steer-left', 'pointerdown');
+    let inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (!inputState.steerLeft || !inputState.accelerate) {
       throw new Error(`Touch steer-left or auto-accelerate failed: ${JSON.stringify(inputState)}`);
     }
-    await dispatchPointer('touch-steer-left', 'pointerup');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-steer-left', 'pointerup');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (inputState.steerLeft) throw new Error('Touch steer-left did not release');
     console.log(`  ✓ Steer Left touch control verified.`);
 
     // --- B. Test Touch Steering Right ---
-    await dispatchPointer('touch-steer-right', 'pointerdown');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-steer-right', 'pointerdown');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (!inputState.steerRight) {
       throw new Error(`Touch steer-right failed: ${JSON.stringify(inputState)}`);
     }
-    await dispatchPointer('touch-steer-right', 'pointerup');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-steer-right', 'pointerup');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (inputState.steerRight) throw new Error('Touch steer-right did not release');
     console.log(`  ✓ Steer Right touch control verified.`);
 
     // --- C. Test Touch Brake (also asserts auto-accelerate disabled while braking) ---
-    await dispatchPointer('touch-brake', 'pointerdown');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-brake', 'pointerdown');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (!inputState.brake || inputState.accelerate) {
       throw new Error(`Touch brake failed or failed to suppress acceleration: ${JSON.stringify(inputState)}`);
     }
-    await dispatchPointer('touch-brake', 'pointerup');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-brake', 'pointerup');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (inputState.brake) throw new Error('Touch brake did not release');
     console.log(`  ✓ Brake touch control verified.`);
 
     // --- D. Test Touch Boost ---
-    await dispatchPointer('touch-boost', 'pointerdown');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-boost', 'pointerdown');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (!inputState.boost) {
       throw new Error(`Touch boost failed: ${JSON.stringify(inputState)}`);
     }
-    await dispatchPointer('touch-boost', 'pointerup');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-boost', 'pointerup');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (inputState.boost) throw new Error('Touch boost did not release');
     console.log(`  ✓ Boost touch control verified.`);
 
     // --- E. Test Touch Stunt (rollRight + thruster) ---
-    await dispatchPointer('touch-stunt', 'pointerdown');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-stunt', 'pointerdown');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (!inputState.rollRight || !inputState.thruster) {
       throw new Error(`Touch stunt trick failed: ${JSON.stringify(inputState)}`);
     }
-    await dispatchPointer('touch-stunt', 'pointerup');
-    inputState = await page.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
+    await dispatchPointer(mobilePage, 'touch-stunt', 'pointerup');
+    inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
     if (inputState.rollRight || inputState.thruster) throw new Error('Touch stunt did not release');
     console.log(`  ✓ Stunt trick touch control verified.`);
 
     // --- F. Test Mobile In-Race Pause and Resume ---
-    await tapButton('#btn-pause');
+    await tapButton(mobilePage, '#btn-pause');
     await new Promise(r => setTimeout(r, 300));
-    if (await getActiveScreen() !== 'screen-paused') {
+    if (await getActiveScreen(mobilePage) !== 'screen-paused') {
       throw new Error(`Mobile pause button failed at ${cfg.width}x${cfg.height}`);
     }
-    await tapButton('#btn-pause-resume');
+    await tapButton(mobilePage, '#btn-pause-resume');
     await new Promise(r => setTimeout(r, 300));
-    if (await getActiveScreen() !== null) {
+    if (await getActiveScreen(mobilePage) !== null) {
       throw new Error(`Mobile resume failed at ${cfg.width}x${cfg.height}`);
     }
     console.log(`  ✓ In-race pause and resume verified.`);
 
     // --- G. Test Results, Retry and Progression ---
-    const priorCareerLevel = await page.evaluate(() => window.__aeroRushApp.progression.getData().careerProgress);
-    await page.evaluate(() => window.__aeroRushApp.completeRunForTesting());
+    const priorCareerLevel = await mobilePage.evaluate(() => window.__aeroRushApp.progression.getData().careerProgress);
+    await mobilePage.evaluate(() => window.__aeroRushApp.completeRunForTesting());
     await new Promise(r => setTimeout(r, 600));
 
-    if (await getActiveScreen() !== 'screen-results') {
+    if (await getActiveScreen(mobilePage) !== 'screen-results') {
       throw new Error(`Results screen not reached at ${cfg.width}x${cfg.height}`);
     }
 
-    const newCareerLevel = await page.evaluate(() => window.__aeroRushApp.progression.getData().careerProgress);
+    const newCareerLevel = await mobilePage.evaluate(() => window.__aeroRushApp.progression.getData().careerProgress);
     console.log(`  ✓ Results screen reached. Career progression advanced: Level ${priorCareerLevel + 1} -> ${newCareerLevel + 1}`);
 
     // On final config, test returning to menu and verifying updated menu state
     if (idx === mobileConfigs.length - 1) {
-      await tapButton('#btn-results-menu');
+      await tapButton(mobilePage, '#btn-results-menu');
       await new Promise(r => setTimeout(r, 600));
-      if (await getActiveScreen() !== 'screen-menu') {
+      if (await getActiveScreen(mobilePage) !== 'screen-menu') {
         throw new Error('Failed to return to main menu from mobile results screen');
       }
-      const finalMenuLevel = await page.evaluate(() => document.getElementById('menu-level-text')?.textContent);
+      const finalMenuLevel = await mobilePage.evaluate(() => document.getElementById('menu-level-text')?.textContent);
       console.log(`  ✓ Final main menu badge verified: [${finalMenuLevel}]`);
     } else {
       // Test mobile Retry on intermediate configs
-      await tapButton('#btn-results-retry');
+      await tapButton(mobilePage, '#btn-results-retry');
       await new Promise(r => setTimeout(r, 400));
-      const retryActive = await page.evaluate(() => {
+      const retryActive = await mobilePage.evaluate(() => {
         const cd = document.getElementById('hud-countdown');
         return cd && !cd.classList.contains('hidden');
       });
@@ -466,6 +550,7 @@ async function run() {
   console.log('🎉 ALL DESKTOP + 8 MOBILE CONFIGURATIONS 100% VERIFIED!');
   console.log('================================================================\n');
 
+  await mobilePage.close();
   await browser.close();
   server.httpServer.close();
   process.exit(0);

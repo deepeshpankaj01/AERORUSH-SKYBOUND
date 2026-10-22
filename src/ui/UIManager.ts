@@ -104,14 +104,6 @@ export class UIManager {
   private hudTutorial: HTMLElement | null;
   private hudGhostDelta: HTMLElement | null;
 
-  // Dialogue Box
-  private dialogOverlay: HTMLElement | null;
-  private dialogText: HTMLElement | null;
-  private dialogCharName: HTMLElement | null;
-  private dialogCharRole: HTMLElement | null;
-  private dialogAvatarIcon: HTMLElement | null;
-  private pendingDialogCallback: (() => void) | null = null;
-
   // Toast
   private toastEl: HTMLElement | null;
   private toastTitle: HTMLElement | null;
@@ -173,12 +165,6 @@ export class UIManager {
     this.hudCrashAlert = document.getElementById('hud-crash-alert');
     this.hudTutorial = document.getElementById('hud-tutorial');
     this.hudGhostDelta = document.getElementById('hud-ghost-delta');
-
-    this.dialogOverlay = document.getElementById('dialog-overlay');
-    this.dialogText = document.getElementById('dialog-text');
-    this.dialogCharName = document.getElementById('dialog-char-name');
-    this.dialogCharRole = document.getElementById('dialog-char-role');
-    this.dialogAvatarIcon = document.getElementById('dialog-avatar-icon');
 
     this.toastEl = document.getElementById('toast-achievement');
     this.toastTitle = document.getElementById('toast-title');
@@ -265,22 +251,6 @@ export class UIManager {
           this.renderGarageTabContent();
         }
       });
-    });
-
-    // Dialog Modal buttons
-    document.getElementById('btn-dialog-skip')?.addEventListener('click', () => {
-      this.dialogOverlay?.classList.add('hidden');
-      if (this.pendingDialogCallback) {
-        this.pendingDialogCallback();
-        this.pendingDialogCallback = null;
-      }
-    });
-    document.getElementById('btn-dialog-continue')?.addEventListener('click', () => {
-      this.dialogOverlay?.classList.add('hidden');
-      if (this.pendingDialogCallback) {
-        this.pendingDialogCallback();
-        this.pendingDialogCallback = null;
-      }
     });
 
     // Settings Modal
@@ -1128,18 +1098,6 @@ export class UIManager {
     }, 4000);
   }
 
-  public showDialogue(character: string, role: string, message: string, onContinue: () => void): void {
-    if (!this.dialogOverlay) return;
-    if (this.dialogCharName) this.dialogCharName.textContent = character;
-    if (this.dialogCharRole) this.dialogCharRole.textContent = role;
-    if (this.dialogText) this.dialogText.textContent = message;
-    if (this.dialogAvatarIcon) {
-      this.dialogAvatarIcon.textContent = character.includes('MIRA') ? '👩‍🚀' : '👨‍💼';
-    }
-    this.pendingDialogCallback = onContinue;
-    this.dialogOverlay.classList.remove('hidden');
-  }
-
   public resetRaceTimer(): void {
     this.raceStartTime = 0;
     if (this.hudTimer) this.hudTimer.textContent = '00:00';
@@ -1182,13 +1140,14 @@ export class UIManager {
       if (!isLocked) {
         card.querySelector('button')?.addEventListener('click', () => {
           this.careerMgr.startMission(m.id);
-          this.showDialogue(m.briefing.character, m.briefing.role, m.briefing.message, () => {
-            this.handlers.onStartRace({
-              environmentId: m.environmentId,
-              stageLength: m.stageLength,
-              isCareer: true,
-              isGhost: true,
-            });
+          const objGoal = m.objectives.length > 0 ? m.objectives[0].label : m.subtitle;
+          this.setHudObjective(`STAGE ${idx + 1}: ${m.title.toUpperCase()} • ${objGoal.toUpperCase()}`);
+          this.handlers.onStartRace({
+            environmentId: m.environmentId,
+            stageLength: m.stageLength,
+            isCareer: true,
+            seed: 100000 + idx * 777,
+            isGhost: true,
           });
         });
       }

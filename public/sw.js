@@ -1,5 +1,5 @@
 // AERORUSH: SKYBOUND - Service Worker (Offline-First PWA Caching Engine)
-const CACHE_NAME = 'aerorush-skybound-v3.2';
+const CACHE_NAME = 'aerorush-skybound-v3.3';
 const CACHE_PREFIX = 'aerorush-skybound-';
 
 // Load build-generated dynamic asset manifest (emitted by Vite at build time)
@@ -32,7 +32,7 @@ self.addEventListener('install', (event) => {
       // Robust precaching: catch individual failures so one missing asset doesn't abort install
       await Promise.all(
         ALL_PRECACHE_ASSETS.map((asset) => {
-          return cache.add(asset).catch((err) => {
+          return cache.add(new Request(asset, { cache: 'reload' })).catch((err) => {
             console.warn(`[SW] Precache skipped for ${asset}:`, err);
           });
         })
@@ -43,14 +43,15 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activation: Clean up only older caches belonging to AERORUSH
+// Activation: Clean up all older caches belonging to AERORUSH
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((name) => {
-          // Conservative cleanup: never delete caches belonging to other apps on this origin
+          // Conservative cleanup: delete older AERORUSH caches safely
           if (name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME) {
+            console.log(`[SW] Deleting obsolete cache: ${name}`);
             return caches.delete(name);
           }
         })
@@ -66,9 +67,20 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  if (event.data && event.data.type === 'CLEAN_OBSOLETE_CACHES') {
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((name) => {
+          if (name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME) {
+            return caches.delete(name);
+          }
+        })
+      );
+    });
+  }
 });
 
-// Fetch: Cache-first with network fallback & runtime caching
+// Fetch: Network-first for HTML navigations; Cache-first with network fallback for assets
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
@@ -78,36 +90,49 @@ self.addEventListener('fetch', (event) => {
   // Ignore non-http requests (e.g. chrome-extension://)
   if (!url.protocol.startsWith('http')) return;
 
-  // Do NOT cache cross-origin requests (e.g. Supabase REST, AdSense scripts)
+  // Do NOT cache cross-origin requests
   if (url.origin !== self.location.origin) return;
 
   // Do NOT cache WebSocket connections
   if (event.request.headers.get('upgrade') === 'websocket') return;
 
+  // Navigation requests (HTML pages): Network-first with offline cache fallback
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache).catch(() => {});
+            }).catch(() => {});
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match('./index.html').then((r) => r || caches.match('./') || caches.match('/'));
+        })
+    );
+    return;
+  }
+
+  // Static assets and bundles: Cache-first with network fallback & runtime caching
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Return cached asset immediately
         return cachedResponse;
       }
 
-      // Fetch from network, and store successful same-origin responses in cache
       return fetch(event.request).then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache).catch((err) => {
-              // Gracefully handle quota or storage access errors
               console.warn('[SW] Runtime cache put skipped:', err);
             });
           }).catch(() => {});
         }
         return networkResponse;
-      }).catch(() => {
-        // If navigation request and offline: fallback to cached index.html or root
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html').then((r) => r || caches.match('./') || caches.match('/'));
-        }
       });
     })
   );

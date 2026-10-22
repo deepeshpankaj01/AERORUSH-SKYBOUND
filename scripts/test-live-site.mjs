@@ -91,13 +91,14 @@ async function checkLive() {
         await page.click('#btn-main-play');
         await new Promise(r => setTimeout(r, 400));
 
-        // Verify NO dialog overlay
-        const isDialogVisible = await page.evaluate(() => {
-          const dialog = document.getElementById('dialog-overlay');
-          return dialog && !dialog.classList.contains('hidden') && dialog.style.display !== 'none';
+        // Verify dialogue overlay and continue/skip buttons are completely removed
+        const hasLegacyDialogue = await page.evaluate(() => {
+          return !!document.getElementById('dialog-overlay') ||
+                 !!document.getElementById('btn-dialog-continue') ||
+                 !!document.getElementById('btn-dialog-skip');
         });
-        if (isDialogVisible) throw new Error('Briefing dialog overlay appeared on live site!');
-        console.log('✓ Verified: No dialogue briefing overlay on live site.');
+        if (hasLegacyDialogue) throw new Error('Legacy briefing dialog elements still present on live site!');
+        console.log('✓ Verified: Legacy dialogue modal and Continue/Skip buttons completely absent from live site.');
 
         // Verify Countdown and HUD
         const countdownActive = await page.evaluate(() => {
