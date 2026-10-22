@@ -62,9 +62,26 @@ describe('Cloudflare Pages Deployment Configuration', () => {
 
     const swCode = fs.readFileSync(filePath, 'utf-8');
     expect(swCode).toContain('CACHE_NAME');
+    expect(swCode).toContain('aerorush-skybound-v3.2');
     expect(swCode).toContain('PRECACHE_ASSETS');
     expect(swCode).toContain('caches.match');
     expect(swCode).toContain('navigate');
+  });
+
+  it('verifies dialog overlay has interactive pointer-events and backdrop in CSS and HTML', () => {
+    const htmlPath = path.join(rootDir, 'index.html');
+    const cssPath = path.join(rootDir, 'src', 'style.css');
+
+    const html = fs.readFileSync(htmlPath, 'utf-8');
+    expect(html).toContain('id="dialog-overlay"');
+    expect(html).toContain('id="btn-dialog-continue"');
+    expect(html).toContain('id="btn-dialog-skip"');
+    expect(html).toContain('dialog-modal-backdrop');
+
+    const css = fs.readFileSync(cssPath, 'utf-8');
+    expect(css).toContain('.dialog-modal-backdrop');
+    expect(css).toMatch(/\.dialog-card\s*\{[^}]*pointer-events:\s*auto/);
+    expect(css).toMatch(/\.dialog-actions\s+button\s*\{[^}]*pointer-events:\s*auto/);
   });
 
   it('verifies dist output has all deployment files after production build', () => {

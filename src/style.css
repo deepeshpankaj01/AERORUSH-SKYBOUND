@@ -783,18 +783,35 @@ button {
   box-shadow: 0 0 6px var(--cyan-glow);
 }
 
-/* Character Dialogue Overlay */
-.dialog-card {
+/* Character Dialogue Overlay Backdrop & Card */
+.dialog-modal-backdrop {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(4, 8, 14, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.dialog-modal-backdrop.hidden {
+  display: none !important;
+}
+
+.dialog-card {
   width: min(540px, 92vw);
   padding: 1.5rem;
-  z-index: 100;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  pointer-events: auto;
+  position: relative;
 }
 
 .dialog-avatar-wrap {
@@ -843,6 +860,11 @@ button {
   display: flex;
   justify-content: flex-end;
   gap: 0.8rem;
+}
+
+.dialog-actions button {
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 /* Achievements Screen */

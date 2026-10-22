@@ -1,5 +1,5 @@
 // AERORUSH: SKYBOUND - Service Worker (Offline-First PWA Caching Engine)
-const CACHE_NAME = 'aerorush-skybound-v3.1';
+const CACHE_NAME = 'aerorush-skybound-v3.2';
 const CACHE_PREFIX = 'aerorush-skybound-';
 
 // Load build-generated dynamic asset manifest (emitted by Vite at build time)

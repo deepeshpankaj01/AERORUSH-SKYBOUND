@@ -1,7 +1,7 @@
 // AERORUSH: SKYBOUND - Main Engine Bootstrap & Phase 3 Production Ready Game Loop
 import * as THREE from 'three';
 import { GAME_CONFIG, QUALITY_PROFILES, QualityProfile } from './config/GameConfig';
-import { GameStateManager } from './core/GameState';
+import { GameStateManager, GameStateType } from './core/GameState';
 import { SoundManager } from './audio/SoundManager';
 import { InputManager } from './input/InputManager';
 import { CarModel } from './entities/CarModel';
@@ -65,6 +65,7 @@ class AeroRushApp {
   private countdownTimer: number = 0;
   private countdownStep: number = 3;
   private crashRecoveryTimer: number = 0;
+  private pausedPreState: GameStateType = 'PLAYING';
 
   private quality: QualityProfile = QUALITY_PROFILES.medium;
   private lastTime: number = 0;
@@ -411,7 +412,8 @@ class AeroRushApp {
   }
 
   private pauseGame(): void {
-    if (!this.stateMgr.is('PLAYING')) return;
+    if (!this.stateMgr.is('PLAYING') && !this.stateMgr.is('COUNTDOWN')) return;
+    this.pausedPreState = this.stateMgr.getState();
     this.stateMgr.setState('PAUSED');
     this.soundMgr.stopCyberMusic();
     this.soundMgr.updateEngine(0, false, false, false);
@@ -419,8 +421,10 @@ class AeroRushApp {
 
   private resumeGame(): void {
     if (!this.stateMgr.is('PAUSED')) return;
-    this.stateMgr.setState('PLAYING');
-    this.soundMgr.startCyberMusic();
+    this.stateMgr.setState(this.pausedPreState || 'PLAYING');
+    if (this.stateMgr.is('PLAYING')) {
+      this.soundMgr.startCyberMusic();
+    }
     this.lastTime = performance.now();
   }
 
