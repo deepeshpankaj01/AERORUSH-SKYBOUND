@@ -36,7 +36,16 @@ export class SoundManager {
   private isInitialized: boolean = false;
 
   constructor() {
-    // Will initialize on first user interaction
+    // Automatically unlock AudioContext on first user interaction anywhere
+    const unlockAudio = () => {
+      this.resumeContext();
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio, { passive: true });
+    window.addEventListener('touchstart', unlockAudio, { passive: true });
   }
 
   public init(): void {

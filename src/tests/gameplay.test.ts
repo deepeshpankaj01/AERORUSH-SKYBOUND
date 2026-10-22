@@ -394,3 +394,48 @@ describe('TrackManager Segment Lifecycle', () => {
     expect(tm.root).toBeDefined();
   });
 });
+
+describe('Audit Fixes: Collision Cooldown, InputManager Touch & Achievement Triggers', () => {
+  it('enforces a cooldown on barrier collision callbacks to prevent machine-gunning audio', () => {
+    const physics = new VehiclePhysics();
+    let collisionEvents = 0;
+    physics.onCollisionCallback = (severity) => {
+      if (severity === 'barrier') collisionEvents++;
+    };
+
+    // Force car against right barrier
+    physics.position.x = physics.trackHalfWidth + 5;
+    const input = createMockInput({ steerRight: true });
+
+    // Frame 1: triggers collision callback and starts 500ms cooldown
+    physics.update(0.016, input);
+    expect(collisionEvents).toBe(1);
+
+    // Frame 2 (after 16ms): still against barrier, should NOT trigger again
+    physics.position.x = physics.trackHalfWidth + 5;
+    physics.update(0.016, input);
+    expect(collisionEvents).toBe(1);
+
+    // Frame 3 (after 550ms total dt): cooldown has expired, should trigger again
+    physics.position.x = physics.trackHalfWidth + 5;
+    physics.update(0.6, input);
+    expect(collisionEvents).toBe(2);
+  });
+
+  it('correctly tracks and unlocks newly-wired achievements', () => {
+    const prog = new ProgressionManager();
+    const achieve = new AchievementManager(prog);
+
+    // Check tuned_perfection
+    achieve.checkAchievement('tuned_perfection');
+    expect(achieve.isUnlocked('tuned_perfection')).toBe(true);
+
+    // Check stylist
+    achieve.checkAchievement('stylist');
+    expect(achieve.isUnlocked('stylist')).toBe(true);
+
+    // Check apex_champion
+    achieve.checkAchievement('apex_champion');
+    expect(achieve.isUnlocked('apex_champion')).toBe(true);
+  });
+});

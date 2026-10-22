@@ -618,6 +618,21 @@ button {
   align-items: stretch;
   justify-content: space-between;
   padding: 1.2rem;
+  pointer-events: none;
+}
+
+#screen-garage.active {
+  pointer-events: none;
+}
+
+.garage-header,
+.garage-tabs-bar,
+.garage-panel {
+  pointer-events: auto;
+}
+
+.garage-tip {
+  pointer-events: none;
 }
 
 .garage-header {
@@ -1325,8 +1340,14 @@ button {
   .touch-layer { display: flex; }
 }
 
-.touch-left-cluster, .touch-right-cluster { display: flex; gap: 0.5rem; pointer-events: auto; }
-.touch-right-cluster { flex-direction: column; }
+.touch-left-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: auto;
+}
+.touch-right-cluster { display: flex; flex-direction: column; gap: 0.5rem; pointer-events: auto; }
+.touch-steer-row { display: flex; gap: 0.5rem; }
 .touch-action-row { display: flex; gap: 0.5rem; justify-content: flex-end; }
 
 .touch-btn {
@@ -1357,6 +1378,14 @@ button {
 .btn-drift { background: rgba(255, 85, 0, 0.2); border-color: var(--accent-orange); color: var(--accent-orange); }
 .btn-thrust { background: rgba(176, 38, 255, 0.2); border-color: #b026ff; color: #d880ff; font-size: 0.72rem; }
 .btn-roll { background: rgba(0, 240, 255, 0.15); font-size: 0.72rem; }
+.btn-brake {
+  background: rgba(255, 30, 80, 0.25);
+  border-color: rgba(255, 30, 80, 0.6);
+  color: #ff5070;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  width: 100%;
+}
 
 /* Results Screen */
 .results-card {

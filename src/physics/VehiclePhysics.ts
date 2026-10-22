@@ -58,6 +58,7 @@ export class VehiclePhysics {
 
   // Track boundaries
   public trackHalfWidth: number = (GAME_CONFIG.world.roadWidth / 2) - (GAME_CONFIG.vehicle.width / 2);
+  private barrierCooldown: number = 0;
 
   constructor() {
     this.reset();
@@ -77,6 +78,7 @@ export class VehiclePhysics {
     this.isBoosting = false;
     this.isThrusting = false;
     this.isCrashed = false;
+    this.barrierCooldown = 0;
     this.airTime = 0;
     this.driftDuration = 0;
     this.totalDriftSeconds = 0;
@@ -112,6 +114,10 @@ export class VehiclePhysics {
       this.forwardSpeed = THREE.MathUtils.lerp(this.forwardSpeed, 0, 5 * dt);
       this.position.z += this.forwardSpeed * dt;
       return;
+    }
+
+    if (this.barrierCooldown > 0) {
+      this.barrierCooldown -= dt;
     }
 
     const cfg = GAME_CONFIG;
@@ -351,6 +357,7 @@ export class VehiclePhysics {
 
   public recoverFromCrash(): void {
     this.isCrashed = false;
+    this.barrierCooldown = 0;
     this.position.y = GAME_CONFIG.vehicle.groundSnapY;
     this.position.x = 0;
     this.rotation.set(0, 0, 0);
@@ -364,15 +371,21 @@ export class VehiclePhysics {
       this.position.x = -this.trackHalfWidth;
       this.lateralVelocity = 8; // Inward rebound
       this.forwardSpeed *= 0.78;
-      if (this.onCollisionCallback) {
-        this.onCollisionCallback('barrier');
+      if (this.barrierCooldown <= 0) {
+        this.barrierCooldown = 0.5;
+        if (this.onCollisionCallback) {
+          this.onCollisionCallback('barrier');
+        }
       }
     } else if (this.position.x > this.trackHalfWidth) {
       this.position.x = this.trackHalfWidth;
       this.lateralVelocity = -8; // Inward rebound
       this.forwardSpeed *= 0.78;
-      if (this.onCollisionCallback) {
-        this.onCollisionCallback('barrier');
+      if (this.barrierCooldown <= 0) {
+        this.barrierCooldown = 0.5;
+        if (this.onCollisionCallback) {
+          this.onCollisionCallback('barrier');
+        }
       }
     }
   }

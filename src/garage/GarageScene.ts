@@ -80,16 +80,19 @@ export class GarageScene {
   }
 
   private setupInteractivity(): void {
-    const canvas = document.getElementById('webgl-canvas');
-    if (!canvas) return;
-
-    canvas.addEventListener('pointerdown', (e) => {
+    const onDown = (e: PointerEvent) => {
       if (!this.root.visible) return;
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest && target.closest('.garage-header, .garage-tabs-bar, .garage-panel')) {
+        return;
+      }
       this.isPointerDown = true;
       this.isAutoRotating = false;
       this.prevPointerX = e.clientX;
       this.prevPointerY = e.clientY;
-    });
+    };
+
+    window.addEventListener('pointerdown', onDown);
 
     window.addEventListener('pointermove', (e) => {
       if (!this.root.visible || !this.isPointerDown) return;
@@ -107,8 +110,12 @@ export class GarageScene {
       this.isPointerDown = false;
     });
 
-    canvas.addEventListener('wheel', (e) => {
+    window.addEventListener('wheel', (e) => {
       if (!this.root.visible) return;
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest && target.closest('.garage-panel')) {
+        return;
+      }
       this.cameraDistance = Math.max(4.5, Math.min(12, this.cameraDistance + e.deltaY * 0.005));
       this.updateCamera();
     }, { passive: true });

@@ -27,6 +27,7 @@ export class InputManager {
     pausePressed: false,
   };
 
+  private isTouchMode: boolean = false;
   private pauseCallbacks: Array<() => void> = [];
   private boundKeyDown: (e: KeyboardEvent) => void;
   private boundKeyUp: (e: KeyboardEvent) => void;
@@ -45,7 +46,11 @@ export class InputManager {
   }
 
   public getState(): Readonly<InputState> {
-    return this.state;
+    const acc = this.isTouchMode && !this.state.brake ? true : this.state.accelerate;
+    return {
+      ...this.state,
+      accelerate: acc,
+    };
   }
 
   public onPauseToggle(cb: () => void): () => void {
@@ -56,6 +61,7 @@ export class InputManager {
   }
 
   private handleKeyDown(e: KeyboardEvent): void {
+    this.isTouchMode = false;
     // Prevent default scroll on arrow keys and space
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
       e.preventDefault();
@@ -171,6 +177,7 @@ export class InputManager {
 
       const setDown = (e: PointerEvent) => {
         e.preventDefault();
+        this.isTouchMode = true;
         el.classList.add('active');
         onActive(true);
         if (el.setPointerCapture) {
@@ -201,6 +208,7 @@ export class InputManager {
     // Bind touch UI buttons
     attachPointerHandler('touch-steer-left', (active) => { this.state.steerLeft = active; });
     attachPointerHandler('touch-steer-right', (active) => { this.state.steerRight = active; });
+    attachPointerHandler('touch-brake', (active) => { this.state.brake = active; });
     attachPointerHandler('touch-boost', (active) => { this.state.boost = active; });
     attachPointerHandler('touch-drift', (active) => { this.state.drift = active; });
     attachPointerHandler('touch-thrust', (active) => { this.state.thruster = active; });

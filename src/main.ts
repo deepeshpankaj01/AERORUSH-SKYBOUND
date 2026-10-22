@@ -251,6 +251,9 @@ class AeroRushApp {
           this.progression.resetLocalData();
           this.applyCosmeticsAndUpgrades();
         },
+        onCosmeticsChanged: () => {
+          this.applyCosmeticsAndUpgrades();
+        },
       },
       {
         onlineLeaderboard: this.onlineLeaderboard,
@@ -410,12 +413,14 @@ class AeroRushApp {
   private pauseGame(): void {
     if (!this.stateMgr.is('PLAYING')) return;
     this.stateMgr.setState('PAUSED');
+    this.soundMgr.stopCyberMusic();
     this.soundMgr.updateEngine(0, false, false, false);
   }
 
   private resumeGame(): void {
     if (!this.stateMgr.is('PAUSED')) return;
     this.stateMgr.setState('PLAYING');
+    this.soundMgr.startCyberMusic();
     this.lastTime = performance.now();
   }
 
@@ -623,9 +628,11 @@ class AeroRushApp {
         },
         // On Ramp
         (ramp) => {
-          this.soundMgr.playRampLaunch();
-          this.physics.launchOffRamp(ramp.height);
-          this.chaseCamera.triggerImpactShake(0.3, 0.2);
+          if (!this.physics.isAirborne) {
+            this.soundMgr.playRampLaunch();
+            this.physics.launchOffRamp(ramp.height);
+            this.chaseCamera.triggerImpactShake(0.3, 0.2);
+          }
         },
         // On Obstacle
         () => {
@@ -771,6 +778,13 @@ class AeroRushApp {
         this.soundMgr.playMissionComplete();
         creditsEarned += missionResult.creditsEarned;
         this.progression.recordMissionComplete(missionResult.mission.id, missionResult.medal, summary.finalScore);
+
+        // Check Apex Champion achievement (Gold on all career missions)
+        const completedMissions = this.progression.getData().completedMissions;
+        const allGold = CAREER_MISSIONS.length > 0 && CAREER_MISSIONS.every(m => completedMissions[m.id]?.medal === 'gold');
+        if (allGold) {
+          this.achieveMgr.checkAchievement('apex_champion');
+        }
 
         // Advance career unlock
         const currentActiveMission = this.careerMgr.getActiveMission();

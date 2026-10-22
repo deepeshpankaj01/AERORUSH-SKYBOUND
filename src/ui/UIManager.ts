@@ -46,6 +46,7 @@ export interface Phase3UIEventHandlers {
   onReducedMotionToggle: (enabled: boolean) => void;
   onVibrationToggle: (enabled: boolean) => void;
   onResetData: () => void;
+  onCosmeticsChanged?: () => void;
 }
 
 export class UIManager {
@@ -55,6 +56,7 @@ export class UIManager {
   private careerMgr: CareerManager;
   private achieveMgr: AchievementManager;
   private handlers: Phase3UIEventHandlers;
+  private settingsReturnState: GameStateType = 'MENU';
 
   // Phase 3 Subsystem Services
   public onlineLeaderboard: OnlineLeaderboardService;
@@ -215,6 +217,7 @@ export class UIManager {
       this.updateCreditsDisplay();
       if (this.stateMgr.is('GARAGE')) {
         this.renderGarageTabContent();
+        this.handlers.onCosmeticsChanged?.();
       }
     });
 
@@ -349,8 +352,12 @@ export class UIManager {
     document.getElementById('btn-how-play')?.addEventListener('click', () => this.stateMgr.setState('PLAY_SELECT'));
 
     // Settings Modal
-    document.getElementById('btn-settings-back')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
-    document.getElementById('btn-settings-save')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
+    document.getElementById('btn-settings-back')?.addEventListener('click', () => this.stateMgr.setState(this.settingsReturnState));
+    document.getElementById('btn-settings-save')?.addEventListener('click', () => this.stateMgr.setState(this.settingsReturnState));
+
+    // Achievements Modal
+    document.getElementById('btn-achievements-back')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
+    document.getElementById('btn-achievements-close')?.addEventListener('click', () => this.stateMgr.setState('MENU'));
 
     const qualityBtns = document.querySelectorAll('#group-quality .group-btn');
     qualityBtns.forEach(btn => {
@@ -419,7 +426,7 @@ export class UIManager {
     // Pause Screen Buttons
     document.getElementById('btn-pause-resume')?.addEventListener('click', () => this.handlers.onResume());
     document.getElementById('btn-pause-restart')?.addEventListener('click', () => this.handlers.onRestartRace());
-    document.getElementById('btn-pause-settings')?.addEventListener('click', () => this.stateMgr.setState('SETTINGS'));
+    document.getElementById('btn-pause-settings')?.addEventListener('click', () => this.openSettings('PAUSED'));
     document.getElementById('btn-pause-quit')?.addEventListener('click', () => this.handlers.onAbortToMenu());
 
     // ================= PHASE 3 BINDINGS =================
@@ -1363,6 +1370,11 @@ export class UIManager {
             const res = this.progression.upgradeComponent(c.id);
             if (!res.success) {
               alert(res.message);
+            } else {
+              const currentLvl = this.progression.getData().upgrades[c.id];
+              if (currentLvl >= 5) {
+                this.achieveMgr.checkAchievement('tuned_perfection');
+              }
             }
           });
         }
@@ -1407,6 +1419,10 @@ export class UIManager {
           const res = this.progression.buyCosmetic(category, item);
           if (!res.success) {
             alert(res.message);
+          } else {
+            if (item.id !== 'midnight_obsidian' && item.id !== 'aero_alloy') {
+              this.achieveMgr.checkAchievement('stylist');
+            }
           }
         });
 
@@ -1438,8 +1454,19 @@ export class UIManager {
     this.stateMgr.setState('ACHIEVEMENTS');
   }
 
-  private openSettings(): void {
+  private openSettings(returnState: GameStateType = 'MENU'): void {
+    this.settingsReturnState = returnState;
     const settings = this.progression.getData().settings;
+
+    const qualityBtns = document.querySelectorAll('#group-quality .group-btn');
+    qualityBtns.forEach(btn => {
+      const q = btn.getAttribute('data-quality');
+      if (q === settings.quality) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
 
     const volSlider = document.getElementById('slider-volume') as HTMLInputElement | null;
     if (volSlider) volSlider.value = `${Math.round(settings.masterVolume * 100)}`;
