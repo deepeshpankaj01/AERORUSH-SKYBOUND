@@ -11,67 +11,67 @@ export interface LiveryPalette {
 
 export const LIVERIES: Record<string, LiveryPalette> = {
   titanium: {
-    bodyColor: 0x344252,
+    bodyColor: 0x8295a8,
     accentColor: 0x00f0ff,
     emissiveColor: 0x00d0ee,
     roughness: 0.18,
-    metalness: 0.88,
+    metalness: 0.42,
   },
   cyan: {
-    bodyColor: 0x163242,
+    bodyColor: 0x00bcd4,
     accentColor: 0x00f0ff,
     emissiveColor: 0x00f0ff,
     roughness: 0.18,
-    metalness: 0.82,
+    metalness: 0.35,
   },
   silver: {
-    bodyColor: 0xdce4ec,
+    bodyColor: 0xeef4fa,
     accentColor: 0x00f0ff,
     emissiveColor: 0x00d8ff,
-    roughness: 0.15,
-    metalness: 0.9,
+    roughness: 0.14,
+    metalness: 0.55,
   },
   crimson: {
-    bodyColor: 0xb5122b,
+    bodyColor: 0xe51a3c,
     accentColor: 0xff3355,
     emissiveColor: 0xff1133,
     roughness: 0.18,
-    metalness: 0.75,
+    metalness: 0.35,
   },
   electric: {
-    bodyColor: 0x0b6fd6,
+    bodyColor: 0x0080ff,
     accentColor: 0x00f0ff,
     emissiveColor: 0x00f0ff,
     roughness: 0.16,
-    metalness: 0.88,
+    metalness: 0.35,
   },
   white: {
-    bodyColor: 0xf4f7fb,
+    bodyColor: 0xffffff,
     accentColor: 0x00f0ff,
     emissiveColor: 0x00e6ff,
-    roughness: 0.16,
-    metalness: 0.75,
+    roughness: 0.18,
+    metalness: 0.22,
   },
   solar: {
-    bodyColor: 0x381c10,
+    bodyColor: 0xff6a00,
     accentColor: 0xff5500,
     emissiveColor: 0xff4400,
-    roughness: 0.22,
-    metalness: 0.75,
+    roughness: 0.18,
+    metalness: 0.35,
   },
   violet: {
-    bodyColor: 0x321442,
+    bodyColor: 0xaa22ff,
     accentColor: 0xb026ff,
     emissiveColor: 0x9900ff,
     roughness: 0.18,
-    metalness: 0.82,
+    metalness: 0.35,
   },
   stealth: {
-    bodyColor: 0x182c1e,
+    bodyColor: 0x10b981,
     accentColor: 0x00ff88,
     emissiveColor: 0x00ff66,
-    roughness: 0.25,
-    metalness: 0.88,
+    roughness: 0.2,
+    metalness: 0.35,
   },
 };
 
@@ -127,17 +127,17 @@ export class CarModel {
     this.accentMaterials.push(accentMat);
 
     const carbonMat = new THREE.MeshStandardMaterial({
-      color: 0x11141a,
-      roughness: 0.5,
-      metalness: 0.3,
+      color: 0x222834,
+      roughness: 0.4,
+      metalness: 0.28,
     });
 
     const glassMat = new THREE.MeshStandardMaterial({
-      color: 0x081522,
-      roughness: 0.08,
-      metalness: 0.95,
+      color: 0x14283c,
+      roughness: 0.1,
+      metalness: 0.6,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.82,
     });
 
     const lightCyanMat = new THREE.MeshStandardMaterial({
@@ -151,7 +151,7 @@ export class CarModel {
     const tailLightMat = new THREE.MeshStandardMaterial({
       color: 0xff0044,
       emissive: 0xff0033,
-      emissiveIntensity: 3.5,
+      emissiveIntensity: 3.8,
       roughness: 0.1,
     });
 
@@ -274,13 +274,21 @@ export class CarModel {
       this.chassisGroup.add(fin);
     }
 
-    // Active Aero Rear Wing
-    const wingGeo = new THREE.BoxGeometry(2.1, 0.06, 0.45);
-    const wing = new THREE.Mesh(wingGeo, carbonMat);
+    // Active Aero Rear Wing (Painted in body livery with glowing cyber endplates)
+    const wingGeo = new THREE.BoxGeometry(2.1, 0.08, 0.46);
+    const wing = new THREE.Mesh(wingGeo, bodyMat);
     wing.position.set(0, 0.82, 2.05);
     wing.rotation.x = -0.08;
     wing.castShadow = true;
+    this.bodyMaterials.push(bodyMat);
     this.chassisGroup.add(wing);
+
+    // Wing Endplates with glowing cyber accents
+    const endplateL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.28, 0.5), accentMat);
+    endplateL.position.set(-1.05, 0.84, 2.05);
+    const endplateR = endplateL.clone();
+    endplateR.position.x = 1.05;
+    this.chassisGroup.add(endplateL, endplateR);
 
     // Wing Struts (Carbon pedestals)
     const strutL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.32, 0.2), carbonMat);
@@ -290,7 +298,7 @@ export class CarModel {
     this.chassisGroup.add(strutL, strutR);
 
     // Rear Cyber Lightbar (Continuous high-mount LED blade)
-    const tailBarGeo = new THREE.BoxGeometry(1.7, 0.05, 0.06);
+    const tailBarGeo = new THREE.BoxGeometry(1.76, 0.09, 0.08);
     const tailBar = new THREE.Mesh(tailBarGeo, tailLightMat);
     tailBar.position.set(0, 0.58, 2.16);
     this.chassisGroup.add(tailBar);

@@ -46,7 +46,7 @@ const server = createServer((req, res) => {
   res.end(JSON.stringify({
     service: 'AERORUSH_MULTIPLAYER_RELAY',
     status: 'ONLINE',
-    author: 'Deepesh Kumar Pankaj',
+    game: 'AERORUSH: SKYBOUND',
     roomsActive: rooms.size,
     uptimeSeconds: Math.floor(process.uptime()),
   }));

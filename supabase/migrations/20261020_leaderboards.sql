@@ -74,4 +74,4 @@ WITH CHECK (
 );
 
 -- 6. Table documentation
-COMMENT ON TABLE public.leaderboards IS 'AERORUSH: SKYBOUND Hypercar Global Leaderboard - Made by Deepesh Kumar Pankaj';
+COMMENT ON TABLE public.leaderboards IS 'AERORUSH: SKYBOUND Hypercar Global Leaderboard';

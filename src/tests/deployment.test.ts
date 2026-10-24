@@ -56,16 +56,33 @@ describe('Cloudflare Pages Deployment Configuration', () => {
     expect(html).not.toMatch(/<link[^>]+rel=["']stylesheet["'][^>]+href=["']https?:\/\//i);
   });
 
-  it('verifies sw.js correctly defines offline caching strategy, version v3.3, and navigation fallback', () => {
+  it('verifies sw.js correctly defines offline caching strategy, version v3.4, and navigation fallback', () => {
     const filePath = path.join(rootDir, 'public', 'sw.js');
     expect(fs.existsSync(filePath)).toBe(true);
 
     const swCode = fs.readFileSync(filePath, 'utf-8');
     expect(swCode).toContain('CACHE_NAME');
-    expect(swCode).toContain('aerorush-skybound-v3.3');
+    expect(swCode).toContain('aerorush-skybound-v3.4');
     expect(swCode).toContain('PRECACHE_ASSETS');
     expect(swCode).toContain('caches.match');
     expect(swCode).toContain('navigate');
+  });
+
+  it('verifies personal name is completely removed from all user-facing files and metadata', () => {
+    const filesToCheck = [
+      path.join(rootDir, 'index.html'),
+      path.join(rootDir, 'README.md'),
+      path.join(rootDir, 'src', 'social', 'ScoreCardGenerator.ts'),
+      path.join(rootDir, 'server', 'server.ts'),
+    ];
+
+    for (const filePath of filesToCheck) {
+      expect(fs.existsSync(filePath)).toBe(true);
+      // Strip allowed repository URLs (e.g. github.com/deepeshpankaj01/...) to test non-URL content
+      const content = fs.readFileSync(filePath, 'utf-8').replace(/github\.com\/[^\s)"]+/gi, '').toLowerCase();
+      expect(content).not.toContain('deepesh');
+      expect(content).not.toContain('pankaj');
+    }
   });
 
   it('verifies legacy dialogue modal and continue/skip buttons are completely removed from index.html', () => {

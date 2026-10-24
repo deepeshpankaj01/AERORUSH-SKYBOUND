@@ -1,6 +1,5 @@
 // AERORUSH: SKYBOUND - Social Viral Score Card Exporter & Share API
 // Renders high-resolution 1200x630 graphic scorecards with hypercar telemetry.
-// Credit: Made by Deepesh Kumar Pankaj
 
 import { ScoreSummary } from '../scoring/ScoreManager';
 
@@ -177,11 +176,11 @@ export class ScoreCardGenerator {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
     ctx.fillText(`DATE: ${new Date().toLocaleDateString()}  •  VANTA XR v2.0`, 70, 578);
 
-    // Tasteful required credit
+    // Branding watermark
     ctx.font = '800 15px "Rajdhani", sans-serif';
-    ctx.fillStyle = '#ff0055';
+    ctx.fillStyle = '#00f0ff';
     ctx.textAlign = 'right';
-    ctx.fillText('Made by Deepesh Kumar Pankaj', 1130, 555);
+    ctx.fillText('AERORUSH: SKYBOUND', 1130, 555);
 
     ctx.font = '500 12px sans-serif';
     ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';

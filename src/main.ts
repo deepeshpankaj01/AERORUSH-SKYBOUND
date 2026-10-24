@@ -56,6 +56,7 @@ class AeroRushApp {
   private dirLight!: THREE.DirectionalLight;
   private headLightL!: THREE.SpotLight;
   private headLightR!: THREE.SpotLight;
+  private tailLight!: THREE.PointLight;
 
   // Race Config & Timers
   private activeEnvironment: EnvironmentTheme = ENVIRONMENTS.neon_dusk;
@@ -106,7 +107,7 @@ class AeroRushApp {
       this.renderer.shadowMap.enabled = this.quality.shadows;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure = 1.15;
+      this.renderer.toneMappingExposure = 1.35;
     } catch (err: any) {
       console.error('WebGL Initialization failed:', err);
       const loaderEl = document.getElementById('screen-loading');
@@ -125,8 +126,9 @@ class AeroRushApp {
     this.scene.background = new THREE.Color(this.activeEnvironment.skyColor);
     this.scene.fog = new THREE.FogExp2(this.activeEnvironment.fogColor, this.activeEnvironment.fogDensity);
 
-    // 3. Initialize Lighting
+    // 3. Initialize Lighting & Procedural Reflections
     this.setupLighting();
+    this.setupEnvironmentMap();
 
     // 4. Initialize Core Modules
     this.stateMgr = new GameStateManager();
@@ -283,7 +285,7 @@ class AeroRushApp {
   private setupLighting(): void {
     const env = this.activeEnvironment;
 
-    this.hemiLight = new THREE.HemisphereLight(env.ambientColor, 0x181e28, env.ambientIntensity);
+    this.hemiLight = new THREE.HemisphereLight(env.ambientColor, 0x242e3e, env.ambientIntensity);
     this.scene.add(this.hemiLight);
 
     this.dirLight = new THREE.DirectionalLight(env.sunColor, env.sunIntensity);
@@ -299,10 +301,46 @@ class AeroRushApp {
     this.dirLight.shadow.camera.bottom = -25;
     this.scene.add(this.dirLight);
 
-    this.headLightL = new THREE.SpotLight(0x00f0ff, 4.0, 45, Math.PI / 6, 0.4, 1.5);
-    this.headLightR = new THREE.SpotLight(0x00f0ff, 4.0, 45, Math.PI / 6, 0.4, 1.5);
+    this.headLightL = new THREE.SpotLight(0x00f0ff, 4.5, 50, Math.PI / 6, 0.4, 1.5);
+    this.headLightR = new THREE.SpotLight(0x00f0ff, 4.5, 50, Math.PI / 6, 0.4, 1.5);
     this.scene.add(this.headLightL, this.headLightR);
     this.scene.add(this.headLightL.target, this.headLightR.target);
+
+    // Glowing rear taillight bounce on track
+    this.tailLight = new THREE.PointLight(0xff1144, 2.4, 12, 1.5);
+    this.scene.add(this.tailLight);
+  }
+
+  private setupEnvironmentMap(): void {
+    try {
+      const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+      pmremGenerator.compileEquirectangularShader();
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 128;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, 128);
+        gradient.addColorStop(0.0, '#2e1966'); // Zenith deep purple
+        gradient.addColorStop(0.35, '#512a80'); // Upper sky
+        gradient.addColorStop(0.48, '#e91e63'); // Sunset pink/magenta
+        gradient.addColorStop(0.52, '#ff9800'); // Horizon amber gold
+        gradient.addColorStop(0.65, '#00bcd4'); // Neon road bounce
+        gradient.addColorStop(1.0, '#0d1527'); // Ground slate
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 256, 128);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+        this.scene.environment = envMap;
+        texture.dispose();
+      }
+      pmremGenerator.dispose();
+    } catch (err) {
+      console.warn('PMREM Environment Map generation skipped:', err);
+    }
   }
 
   private applyCosmeticsAndUpgrades(): void {
@@ -587,12 +625,13 @@ class AeroRushApp {
         dt
       );
 
-      // Headlight Spotlights
+      // Headlight Spotlights & Rear Taillight Bounce
       this.carModel.root.getWorldPosition(this.carWorldPos);
       this.headLightL.position.set(this.carWorldPos.x - 0.7, this.carWorldPos.y + 0.4, this.carWorldPos.z + 0.5);
       this.headLightR.position.set(this.carWorldPos.x + 0.7, this.carWorldPos.y + 0.4, this.carWorldPos.z + 0.5);
       this.headLightL.target.position.set(this.carWorldPos.x - 0.7, this.carWorldPos.y, this.carWorldPos.z + 25);
       this.headLightR.target.position.set(this.carWorldPos.x + 0.7, this.carWorldPos.y, this.carWorldPos.z + 25);
+      this.tailLight.position.set(this.carWorldPos.x, this.carWorldPos.y + 0.55, this.carWorldPos.z - 2.1);
 
       // Track & Weather
       this.trackMgr.update(this.physics.position.z, dt);

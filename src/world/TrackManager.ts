@@ -325,7 +325,7 @@ export class TrackManager {
       const gap = (len - dashCount * dashLen) / dashCount;
 
       for (let d = 0; d < dashCount; d++) {
-        const markingGeo = new THREE.PlaneGeometry(0.38, dashLen);
+        const markingGeo = new THREE.PlaneGeometry(0.42, dashLen);
         const marking = new THREE.Mesh(markingGeo, this.markingMaterial);
         marking.rotation.x = -Math.PI / 2;
         marking.position.set(x, 0.41, d * (dashLen + gap) + dashLen / 2);

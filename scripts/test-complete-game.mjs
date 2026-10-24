@@ -149,6 +149,13 @@ async function run() {
   if (!recordText || !recordText.includes('BEST:')) throw new Error(`Expected Record badge, got: ${recordText}`);
   console.log('✓ Main menu badges verified.');
 
+  // Personal name privacy verification
+  const domText = await page.evaluate(() => document.body.innerText.toLowerCase());
+  if (domText.includes('deepesh') || domText.includes('pankaj')) {
+    throw new Error('Personal name detected in user-facing DOM text!');
+  }
+  console.log('✓ Verified 100% absence of personal name in user-facing DOM.');
+
   // Settings modal
   console.log('Testing SETTINGS button...');
   await page.click('#btn-nav-settings');
@@ -162,9 +169,10 @@ async function run() {
 
   // Garage
   console.log('Testing GARAGE button...');
-  await page.click('#btn-nav-garage');
-  await new Promise(r => setTimeout(r, 500));
-  if (await getActiveScreen() !== 'screen-garage') throw new Error('Failed to open screen-garage');
+  await tapButton(page, '#btn-nav-garage');
+  await new Promise(r => setTimeout(r, 600));
+  const garageScreen = await getActiveScreen();
+  if (garageScreen !== 'screen-garage') throw new Error(`Failed to open screen-garage (current screen: ${garageScreen})`);
   await tapButton(page, '.garage-tab[data-tab="paints"]');
   await new Promise(r => setTimeout(r, 400));
   const paintsCount = await page.evaluate(() => document.querySelectorAll('#garage-tab-content .shop-item-card').length);
@@ -197,15 +205,15 @@ async function run() {
       await r.unregister();
     }
 
-    // Simulate an existing installation that has obsolete v3.2 cache
-    const oldCache = await caches.open('aerorush-skybound-v3.2');
+    // Simulate an existing installation that has obsolete v3.3 cache
+    const oldCache = await caches.open('aerorush-skybound-v3.3');
     await oldCache.put(new Request('/legacy-test-asset'), new Response('legacy-data'));
 
     // Verify old cache exists before SW activation
     const beforeKeys = await caches.keys();
-    const hasOldBefore = beforeKeys.includes('aerorush-skybound-v3.2');
+    const hasOldBefore = beforeKeys.includes('aerorush-skybound-v3.3');
 
-    // Register v3.3 service worker
+    // Register v3.4 service worker
     const newReg = await navigator.serviceWorker.register('./sw.js');
     if (newReg.installing || newReg.waiting) {
       const activeWorker = newReg.installing || newReg.waiting;
@@ -218,7 +226,7 @@ async function run() {
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAN_OBSOLETE_CACHES' });
       }
       const keys = await caches.keys();
-      if (keys.includes('aerorush-skybound-v3.3') && !keys.includes('aerorush-skybound-v3.2')) {
+      if (keys.includes('aerorush-skybound-v3.4') && !keys.includes('aerorush-skybound-v3.3')) {
         break;
       }
       await new Promise(r => setTimeout(r, 250));
@@ -229,15 +237,15 @@ async function run() {
       supported: true,
       hasOldBefore,
       afterKeys,
-      newCachePresent: afterKeys.includes('aerorush-skybound-v3.3'),
-      oldCacheCleanedUp: !afterKeys.includes('aerorush-skybound-v3.2')
+      newCachePresent: afterKeys.includes('aerorush-skybound-v3.4'),
+      oldCacheCleanedUp: !afterKeys.includes('aerorush-skybound-v3.3')
     };
   });
   console.log('SW Cache Cleanup Verification:', cacheTestResult);
   if (cacheTestResult.supported) {
-    if (!cacheTestResult.newCachePresent) throw new Error('New SW cache aerorush-skybound-v3.3 not found!');
-    if (!cacheTestResult.oldCacheCleanedUp) throw new Error('Obsolete cache aerorush-skybound-v3.2 was not cleaned up safely!');
-    console.log('✓ Verified: Service worker updated to v3.3 and obsolete v3.2 cache safely deleted.');
+    if (!cacheTestResult.newCachePresent) throw new Error('New SW cache aerorush-skybound-v3.4 not found!');
+    if (!cacheTestResult.oldCacheCleanedUp) throw new Error('Obsolete cache aerorush-skybound-v3.3 was not cleaned up safely!');
+    console.log('✓ Verified: Service worker updated to v3.4 and obsolete cache safely deleted.');
   }
 
   // Direct Play Flow
@@ -589,15 +597,15 @@ async function run() {
     if (inputState.boost) throw new Error('Touch boost did not release');
     console.log(`  ✓ Boost touch control verified.`);
 
-    // --- E. Test Touch Stunt (rollRight + thruster) ---
+    // --- E. Test Touch Stunt (rollRight + drift) ---
     await dispatchPointer(mobilePage, 'touch-stunt', 'pointerdown');
     inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
-    if (!inputState.rollRight || !inputState.thruster) {
+    if (!inputState.rollRight || !inputState.drift) {
       throw new Error(`Touch stunt trick failed: ${JSON.stringify(inputState)}`);
     }
     await dispatchPointer(mobilePage, 'touch-stunt', 'pointerup');
     inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
-    if (inputState.rollRight || inputState.thruster) throw new Error('Touch stunt did not release');
+    if (inputState.rollRight || inputState.drift) throw new Error('Touch stunt did not release');
     console.log(`  ✓ Stunt trick touch control verified.`);
 
     // --- F. Test Mobile In-Race Pause and Resume ---

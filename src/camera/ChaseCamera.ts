@@ -29,9 +29,13 @@ export class ChaseCamera {
     this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 6 * dt);
     this.camera.updateProjectionMatrix();
 
-    // 2. Camera Chase Offset
-    const heightOffset = isAirborne ? 3.6 : 2.8;
-    const distanceOffset = isBoosting ? -7.8 : -7.0;
+    // 2. Camera Chase Offset (adaptive for portrait vs landscape)
+    const isPortrait = this.camera.aspect < 1.0;
+    const baseHeight = isPortrait ? 2.4 : 2.8;
+    const baseDistance = isPortrait ? -6.2 : -7.0;
+
+    const heightOffset = isAirborne ? baseHeight + 0.8 : baseHeight;
+    const distanceOffset = isBoosting ? baseDistance - 0.8 : baseDistance;
     const lateralShift = -steerAngle * 1.5;
 
     const desiredPos = new THREE.Vector3(
@@ -42,8 +46,8 @@ export class ChaseCamera {
 
     const desiredLookAt = new THREE.Vector3(
       carPos.x * 0.4,
-      carPos.y + 1.2,
-      carPos.z + 12.0
+      carPos.y + (isPortrait ? 1.0 : 1.2),
+      carPos.z + (isPortrait ? 10.0 : 12.0)
     );
 
     // Smooth lerp (tight response to keep car visible and grounded)

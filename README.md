@@ -8,8 +8,7 @@
 > **A fast, futuristic 3D electric hypercar arcade racing and aerial-stunt browser game.**<br>
 > Built as an offline-first Progressive Web App with pure Three.js, TypeScript, and procedural skyways.
 
-🎮 **Play Now:** [https://aerorush-skybound.pages.dev/](https://aerorush-skybound.pages.dev/)<br>
-👤 **Author:** Deepesh Kumar Pankaj
+🎮 **Play Now:** [https://aerorush-skybound.pages.dev/](https://aerorush-skybound.pages.dev/)
 
 ---
 
@@ -86,7 +85,6 @@ Tested and verified with real automated touch pointer events across 8 device con
 
 ---
 
-## 📄 License & Credits
+## 📄 License
 
-Created by **Deepesh Kumar Pankaj**.<br>
 Released under the [MIT License](LICENSE).

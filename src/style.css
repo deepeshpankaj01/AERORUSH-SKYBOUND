@@ -88,6 +88,12 @@ html, body {
   pointer-events: none;
 }
 
+#global-bar.hidden,
+#ui-layer:has(#game-hud:not(.hidden)) #global-bar,
+#ui-layer:has(.screen.active:not(#screen-menu)) #global-bar {
+  display: none !important;
+}
+
 .network-badge {
   display: flex;
   align-items: center;
