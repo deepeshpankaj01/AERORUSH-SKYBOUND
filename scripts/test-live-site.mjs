@@ -86,6 +86,13 @@ async function checkLive() {
       if (hasHeroPlay && levelText && levelText.includes('LEVEL 1') && networkStatus && networkStatus.includes('LOCAL SAVE')) {
         console.log('✓ Latest production deployment with honest local save status is LIVE on Cloudflare Pages!');
 
+        // Verify personal name privacy on live site
+        const liveText = await page.evaluate(() => document.body.innerText.toLowerCase());
+        if (liveText.includes('deepesh') || liveText.includes('pankaj')) {
+          throw new Error('Personal name detected on live site DOM!');
+        }
+        console.log('✓ Verified 100% absence of personal name on live site.');
+
         // Test Direct Play Flow
         console.log('Testing Live Direct Play flow: Clicking #btn-main-play...');
         await page.click('#btn-main-play');
