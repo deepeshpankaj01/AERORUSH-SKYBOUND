@@ -11,18 +11,18 @@ export interface LiveryPalette {
 
 export const LIVERIES: Record<string, LiveryPalette> = {
   titanium: {
-    bodyColor: 0x121720,
+    bodyColor: 0x344252,
     accentColor: 0x00f0ff,
     emissiveColor: 0x00d0ee,
-    roughness: 0.22,
-    metalness: 0.8,
+    roughness: 0.18,
+    metalness: 0.88,
   },
   cyan: {
-    bodyColor: 0x0a0e14,
+    bodyColor: 0x163242,
     accentColor: 0x00f0ff,
     emissiveColor: 0x00f0ff,
-    roughness: 0.22,
-    metalness: 0.75,
+    roughness: 0.18,
+    metalness: 0.82,
   },
   silver: {
     bodyColor: 0xdce4ec,
@@ -32,18 +32,18 @@ export const LIVERIES: Record<string, LiveryPalette> = {
     metalness: 0.9,
   },
   crimson: {
-    bodyColor: 0xa80d22,
+    bodyColor: 0xb5122b,
     accentColor: 0xff3355,
     emissiveColor: 0xff1133,
-    roughness: 0.2,
-    metalness: 0.7,
+    roughness: 0.18,
+    metalness: 0.75,
   },
   electric: {
-    bodyColor: 0x0066cc,
+    bodyColor: 0x0b6fd6,
     accentColor: 0x00f0ff,
     emissiveColor: 0x00f0ff,
-    roughness: 0.18,
-    metalness: 0.85,
+    roughness: 0.16,
+    metalness: 0.88,
   },
   white: {
     bodyColor: 0xf4f7fb,
@@ -53,25 +53,25 @@ export const LIVERIES: Record<string, LiveryPalette> = {
     metalness: 0.75,
   },
   solar: {
-    bodyColor: 0x180b05,
+    bodyColor: 0x381c10,
     accentColor: 0xff5500,
     emissiveColor: 0xff4400,
-    roughness: 0.25,
-    metalness: 0.7,
+    roughness: 0.22,
+    metalness: 0.75,
   },
   violet: {
-    bodyColor: 0x14061a,
+    bodyColor: 0x321442,
     accentColor: 0xb026ff,
     emissiveColor: 0x9900ff,
-    roughness: 0.2,
-    metalness: 0.8,
+    roughness: 0.18,
+    metalness: 0.82,
   },
   stealth: {
-    bodyColor: 0x061208,
+    bodyColor: 0x182c1e,
     accentColor: 0x00ff88,
     emissiveColor: 0x00ff66,
-    roughness: 0.3,
-    metalness: 0.85,
+    roughness: 0.25,
+    metalness: 0.88,
   },
 };
 
@@ -149,9 +149,9 @@ export class CarModel {
     this.accentMaterials.push(lightCyanMat);
 
     const tailLightMat = new THREE.MeshStandardMaterial({
-      color: 0xff0033,
+      color: 0xff0044,
       emissive: 0xff0033,
-      emissiveIntensity: 2.5,
+      emissiveIntensity: 3.5,
       roughness: 0.1,
     });
 
@@ -319,7 +319,7 @@ export class CarModel {
       color: 0x00f0ff,
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.3,
+      opacity: 0.55,
     });
 
     this.thrusterCoreLeft = new THREE.Mesh(coreGeo, coreMat.clone());
@@ -329,11 +329,11 @@ export class CarModel {
     this.chassisGroup.add(this.thrusterCoreLeft, this.thrusterCoreRight);
 
     // 10. Underbody Neon Illumination Plane
-    const underglowGeo = new THREE.PlaneGeometry(1.6, 3.8);
+    const underglowGeo = new THREE.PlaneGeometry(1.8, 4.0);
     const underglowMat = new THREE.MeshBasicMaterial({
       color: 0x00f0ff,
       transparent: true,
-      opacity: 0.25,
+      opacity: 0.55,
       side: THREE.DoubleSide,
       blending: THREE.AdditiveBlending,
       depthWrite: false,

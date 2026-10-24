@@ -82,6 +82,7 @@ export class UIManager {
   private pendingFriendChallenge: FriendChallengeData | null = null;
 
   // Global & HUD Nodes
+  private globalBar: HTMLElement | null;
   private globalCreditsVal: HTMLElement | null;
   private garageCreditsVal: HTMLElement | null;
   private networkStatusText: HTMLElement | null;
@@ -110,6 +111,7 @@ export class UIManager {
   private toastDesc: HTMLElement | null;
   private toastReward: HTMLElement | null;
   private toastTimeout: number | null = null;
+  private tutorialTimeout: number | null = null;
 
   private raceStartTime: number = 0;
   private trickTimeout: number | null = null;
@@ -143,6 +145,7 @@ export class UIManager {
     this.mpClient = services?.mpClient || null;
 
     // Cache DOM Nodes
+    this.globalBar = document.getElementById('global-bar');
     this.globalCreditsVal = document.getElementById('global-credits-val');
     this.garageCreditsVal = document.getElementById('garage-credits-val');
     this.networkStatusText = document.getElementById('network-status-text');
@@ -989,13 +992,42 @@ export class UIManager {
       if (el) el.classList.add('active');
     }
 
-    if (next === 'PLAYING' || next === 'COUNTDOWN' || next === 'CRASHED') {
+    const isRaceActive = (next === 'PLAYING' || next === 'COUNTDOWN' || next === 'CRASHED');
+    const hideGlobalBar = isRaceActive || (next === 'PAUSED' || next === 'RESULTS');
+
+    if (hideGlobalBar) {
+      this.globalBar?.classList.add('hidden');
+    } else {
+      this.globalBar?.classList.remove('hidden');
+    }
+
+    if (isRaceActive) {
       this.hudContainer?.classList.remove('hidden');
       if (next === 'PLAYING' && this.raceStartTime === 0) {
         this.raceStartTime = Date.now();
       }
+
+      // Configure responsive, context-aware tutorial banner
+      if (this.hudTutorial) {
+        const isTouch = typeof window !== 'undefined' && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+        const tipEl = this.hudTutorial.querySelector('.tutorial-tip');
+        if (tipEl) {
+          tipEl.innerHTML = isTouch
+            ? '💡 <strong>CONTROLS:</strong> TAP ◀ ▶ TO STEER • AUTO-SPEED ON • BRAKE & BOOST'
+            : '💡 <strong>CONTROLS:</strong> [W/↑] SPEED • [A/D] STEER • [SPACE] BOOST • [SHIFT] DRIFT';
+        }
+        this.hudTutorial.classList.remove('hidden');
+        if (this.tutorialTimeout) clearTimeout(this.tutorialTimeout);
+        this.tutorialTimeout = window.setTimeout(() => {
+          this.hudTutorial?.classList.add('hidden');
+        }, 4500);
+      }
     } else {
       this.hudContainer?.classList.add('hidden');
+      if (this.tutorialTimeout) {
+        clearTimeout(this.tutorialTimeout);
+        this.tutorialTimeout = null;
+      }
     }
 
     if (next === 'MENU') {

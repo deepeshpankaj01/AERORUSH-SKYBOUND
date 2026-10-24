@@ -283,7 +283,7 @@ class AeroRushApp {
   private setupLighting(): void {
     const env = this.activeEnvironment;
 
-    this.hemiLight = new THREE.HemisphereLight(env.ambientColor, 0x05070c, env.ambientIntensity);
+    this.hemiLight = new THREE.HemisphereLight(env.ambientColor, 0x181e28, env.ambientIntensity);
     this.scene.add(this.hemiLight);
 
     this.dirLight = new THREE.DirectionalLight(env.sunColor, env.sunIntensity);

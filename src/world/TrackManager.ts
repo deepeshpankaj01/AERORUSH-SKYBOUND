@@ -325,7 +325,7 @@ export class TrackManager {
       const gap = (len - dashCount * dashLen) / dashCount;
 
       for (let d = 0; d < dashCount; d++) {
-        const markingGeo = new THREE.PlaneGeometry(0.25, dashLen);
+        const markingGeo = new THREE.PlaneGeometry(0.38, dashLen);
         const marking = new THREE.Mesh(markingGeo, this.markingMaterial);
         marking.rotation.x = -Math.PI / 2;
         marking.position.set(x, 0.41, d * (dashLen + gap) + dashLen / 2);
@@ -335,7 +335,7 @@ export class TrackManager {
 
     // 3. Side Highway Barriers & Edge Glow
     const barrierGeo = new THREE.BoxGeometry(0.6, 1.4, len);
-    const glowGeo = new THREE.BoxGeometry(0.2, 0.15, len);
+    const glowGeo = new THREE.BoxGeometry(0.25, 0.22, len);
 
     // Left Barrier
     const leftBarrier = new THREE.Mesh(barrierGeo, this.barrierMaterial);

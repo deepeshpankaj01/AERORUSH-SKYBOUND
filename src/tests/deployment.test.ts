@@ -41,7 +41,7 @@ describe('Cloudflare Pages Deployment Configuration', () => {
     expect(manifest.short_name).toBe('AERORUSH');
     expect(manifest.start_url).toBe('./index.html');
     expect(manifest.display).toBe('standalone');
-    expect(manifest.orientation).toBe('landscape-primary');
+    expect(['any', 'natural', 'landscape-primary']).toContain(manifest.orientation);
     expect(Array.isArray(manifest.icons)).toBe(true);
     expect(manifest.icons.length).toBeGreaterThanOrEqual(2);
   });

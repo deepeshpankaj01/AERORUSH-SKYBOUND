@@ -436,6 +436,115 @@ async function run() {
     }
     console.log(`  ✓ Mobile touch layer active.`);
 
+    // --- Geometric Non-Overlap & Visibility Audit ---
+    const layoutAudit = await mobilePage.evaluate(() => {
+      const getRect = (sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return {
+          selector: sel,
+          top: r.top,
+          left: r.left,
+          right: r.right,
+          bottom: r.bottom,
+          width: r.width,
+          height: r.height,
+          visible: r.width > 0 && r.height > 0 && window.getComputedStyle(el).display !== 'none'
+        };
+      };
+
+      const gb = document.getElementById('global-bar');
+      const gbStyle = gb ? window.getComputedStyle(gb) : null;
+      const globalBarVisible = gb ? (!gb.classList.contains('hidden') && gbStyle?.display !== 'none' && gbStyle?.opacity !== '0') : false;
+
+      const scoreRect = getRect('.hud-score-card');
+      const pauseRect = getRect('#btn-pause');
+      const objRect = getRect('#hud-objective-pill');
+      const metaRect = getRect('.hud-meta-card');
+      const tutorialRect = getRect('#hud-tutorial');
+
+      const steerLeftRect = getRect('#touch-steer-left');
+      const steerRightRect = getRect('#touch-steer-right');
+      const brakeRect = getRect('#touch-brake');
+      const boostRect = getRect('#touch-boost');
+      const stuntRect = getRect('#touch-stunt');
+
+      const energyPanelRect = getRect('.energy-gauge-panel');
+      const speedPanelRect = getRect('.speed-gauge-panel');
+
+      const intersect = (r1, r2, pad = 0) => {
+        if (!r1 || !r2 || !r1.visible || !r2.visible) return false;
+        return !(
+          r1.right - pad <= r2.left ||
+          r1.left + pad >= r2.right ||
+          r1.bottom - pad <= r2.top ||
+          r1.top + pad >= r2.bottom
+        );
+      };
+
+      const collisions = [];
+
+      // Top HUD non-overlap checks
+      if (intersect(scoreRect, pauseRect)) collisions.push('hud-score collides with btn-pause');
+      if (intersect(scoreRect, metaRect)) collisions.push('hud-score collides with hud-meta');
+      if (intersect(scoreRect, objRect)) collisions.push('hud-score collides with hud-objective');
+      if (intersect(objRect, pauseRect)) collisions.push('hud-objective collides with btn-pause');
+      if (intersect(objRect, metaRect)) collisions.push('hud-objective collides with hud-meta');
+
+      // Left cluster vs Right cluster non-overlap
+      const leftCluster = [steerLeftRect, steerRightRect, brakeRect].filter(r => r && r.visible);
+      const rightCluster = [boostRect, stuntRect].filter(r => r && r.visible);
+
+      for (const lc of leftCluster) {
+        for (const rc of rightCluster) {
+          if (intersect(lc, rc)) {
+            collisions.push(`${lc.selector} collides with ${rc.selector}`);
+          }
+        }
+      }
+
+      // Bottom gauges vs touch buttons non-overlap
+      const touchButtons = [...leftCluster, ...rightCluster];
+      const hudGauges = [energyPanelRect, speedPanelRect].filter(r => r && r.visible);
+
+      for (const tb of touchButtons) {
+        for (const hg of hudGauges) {
+          if (intersect(tb, hg)) {
+            collisions.push(`${tb.selector} collides with ${hg.selector}`);
+          }
+        }
+      }
+
+      // Tutorial horizontal boundary
+      let tutorialOverflow = false;
+      if (tutorialRect && tutorialRect.visible) {
+        if (tutorialRect.left < 0 || tutorialRect.right > window.innerWidth + 2) {
+          tutorialOverflow = true;
+        }
+      }
+
+      return {
+        globalBarVisible,
+        collisions,
+        tutorialOverflow,
+        scoreRect,
+        pauseRect,
+        objRect
+      };
+    });
+
+    if (layoutAudit.globalBarVisible) {
+      throw new Error(`Global bar must be hidden during gameplay at ${cfg.width}x${cfg.height}`);
+    }
+    if (layoutAudit.collisions.length > 0) {
+      throw new Error(`Geometric layout collision detected at ${cfg.width}x${cfg.height}: ${layoutAudit.collisions.join(', ')}`);
+    }
+    if (layoutAudit.tutorialOverflow) {
+      throw new Error(`Tutorial banner overflow detected at ${cfg.width}x${cfg.height}`);
+    }
+    console.log(`  ✓ Geometric layout verified (zero bounding-box collisions, global bar hidden, tutorial inside bounds).`);
+
     // --- A. Test Touch Steering Left ---
     await dispatchPointer(mobilePage, 'touch-steer-left', 'pointerdown');
     let inputState = await mobilePage.evaluate(() => window.__aeroRushApp.getInputStateForTesting());
